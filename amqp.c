@@ -259,7 +259,7 @@ static void  amqp_error(amqp_rpc_reply_t x, char ** pstr) {
 		break;
 
 		case AMQP_RESPONSE_LIBRARY_EXCEPTION:
-		spprintf(pstr, 0, "Library error: %s\n",strerror(x.library_errno));
+		spprintf(pstr, 0, "Library error: %s\n",strerror(x.library_error));
 		break;
 
 		case AMQP_RESPONSE_SERVER_EXCEPTION:
@@ -916,13 +916,13 @@ PHP_METHOD(amqp_queue_class, consume)
 
 	amqp_basic_consume_t s;
 	s.ticket				= 0;
-	s.queue.len			 = ctx->name_len;
-	s.queue.bytes		   = ctx->name;
-	s.consumer_tag.len	  = 0;
+	s.queue.len			 	= ctx->name_len;
+	s.queue.bytes			= ctx->name;
+	s.consumer_tag.len		= 0;
 	s.consumer_tag.bytes	= NULL;
-	s.no_local			  = (AMQP_NOLOCAL & parms) ? 1 : 0;
+	s.no_local				= (AMQP_NOLOCAL & parms) ? 1 : 0;
 	s.no_ack				= (AMQP_NOACK & parms) ? 1 : 0;
-	s.exclusive			 = (AMQP_EXCLUSIVE & parms) ? 1 : 0;
+	s.exclusive				= (AMQP_EXCLUSIVE & parms) ? 1 : 0;
 	s.nowait				= 0;
 
 	amqp_method_number_t method_ok = AMQP_BASIC_CONSUME_OK_METHOD;
