@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package packagerversion="1.9.0" version="2.0" xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0
+http://pear.php.net/dtd/tasks-1.0.xsd
+http://pear.php.net/dtd/package-2.0
+http://pear.php.net/dtd/package-2.0.xsd">
+ <name>amqp</name>
+ <channel>pecl.php.net</channel>
+ <summary>Communicate with any AMQP compliant server</summary>
+ <description>This extension can communicate with any AMQP spec 0-9-1 compatible server, such as RabbitMQ, OpenAMQP and Qpid, giving you the ability to create and delete exchanges and queues, as well as publish to any exchange and consume from any queue.
+ 
+ </description>
+ <lead>
+  <name>Pieter de Zwart</name>
+  <user>pdezwart</user>
+  <email>pdezwart@php.net</email>
+  <active>yes</active>
+ </lead>
+ <date>2010-08-19</date>
+ <time>13:32:53</time>
+ <version>
+  <release>0.1.1</release>
+  <api>0.1.1</api>
+ </version>
+ <stability>
+  <release>beta</release>
+  <api>beta</api>
+ </stability>
+ <license uri="http://www.php.net/license">PHP License</license>
+ <notes>
+Updating extension to work with new rabbitmq-c library
+ </notes>
+ <contents>
+  <dir name="/">
+   <file name="amqp.c" role="src" />
+   <file name="config.m4" role="src" />
+   <file name="CREDITS" role="doc" />
+   <file name="php_amqp.h" role="src" />
+  </dir> <!-- / -->
+ </contents>
+ <dependencies>
+  <required>
+   <php>
+    <min>4.3.0</min>
+   </php>
+   <pearinstaller>
+    <min>1.4.0b1</min>
+   </pearinstaller>
+  </required>
+ </dependencies>
+ <providesextension>amqp</providesextension>
+ <extsrcrelease />
+</package>
