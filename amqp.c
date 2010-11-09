@@ -12,13 +12,14 @@
   | obtain it through the world-wide-web, please send a note to			|
   | license@php.net so we can mail you a copy immediately.				|
   |																		|
-  | This source uses the libamqpmq under the MPL. For the MPL, please	|
+  | This source uses the librabbitmq under the MPL. For the MPL, please |
   | see LICENSE-MPL-RabbitMQ											|
   +---------------------------------------------------------------------+
   | Author: Alexandre Kalendarev akalend@mail.ru Copyright (c) 2009-2010|
   | Maintainer: Pieter de Zwart pdezwart@php.net						|
   | Contributers:														|
   | - Andrey Hristov													|
+  | - Brad Rodriguez brodrigu@gmail.com									|
   +---------------------------------------------------------------------+
 */
 
@@ -42,12 +43,12 @@
 
 #include <unistd.h>
 
-#define FRAME_MAX				131072  /* max length (size) of frame */
+#define FRAME_MAX				131072	/* max length (size) of frame */
 #define HEADER_FOOTER_SIZE		8	   /*  7 bytes up front, then payload, then 1 byte footer */
 #define PORT					5672	/* default AMQP port */
 #define PORT_STR				"5672"
 #define AMQP_CHANNEL			1	   /* default channel number */
-#define AMQP_HEARBEAT			0	   /* hearbeat */
+#define AMQP_HEARTBEAT			0	   /* heartbeat */
 
 #define AMQP_NULLARGS			amqp_table_t arguments = {0, NULL};
 #define AMQP_PASSIVE_D			short passive = (AMQP_PASSIVE & parms) ? 1 : 0;
@@ -76,6 +77,15 @@ typedef struct _amqp_object {
 	zend_object zo;
 	char is_connected;
 	char is_channel_connected;
+	char login[32];
+	int char_len;
+	char password[32];
+	int password_len;
+	char host[1024];
+	int host_len;
+	char vhost[32];
+	int vhost_len;
+	int port;
 	int fd;
 	amqp_connection_state_t conn;
 } amqp_object;
@@ -88,6 +98,10 @@ typedef struct _amqp_queue_object {
 	int name_len;
 	char consumer_tag[64];
 	int consumer_tag_len;
+	int passive;
+	int durable;
+	int exclusive;
+	int auto_delete;
 } amqp_queue_object;
 
 
@@ -106,6 +120,35 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_class__construct, ZEND_SEND_BY_VAL, ZEND_RET
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_class_isConnected, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_class_connect, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_class_disconnect, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_class_reconnect, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_class_setLogin, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
+ZEND_ARG_INFO(0, login)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_class_setPassword, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
+ZEND_ARG_INFO(0, password)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_class_setHost, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
+ZEND_ARG_INFO(0, host)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_class_setPort, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
+ZEND_ARG_INFO(0, port)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_class_setVhost, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
+ZEND_ARG_INFO(0, vhost)
 ZEND_END_ARG_INFO()
 
 /* amqp_queue_class ARG_INFO definition */
@@ -138,8 +181,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_unbind, ZEND_SEND_BY_VAL, ZEND_R
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_consume, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
-	ZEND_ARG_INFO(0, num_messages)
-	ZEND_ARG_INFO(0, flags)
+	ZEND_ARG_INFO(0, options)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_get, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
@@ -186,8 +228,16 @@ ZEND_END_ARG_INFO()
 *Every user visible function must have an entry in amqp_functions[].
 */
 zend_function_entry amqp_class_functions[] = {
-	PHP_ME(amqp_class, __construct, arginfo_amqp_class__construct,  ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_class, __construct, arginfo_amqp_class__construct,	ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_class, isConnected, arginfo_amqp_class_isConnected, ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_class, connect, arginfo_amqp_class_connect, ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_class, disconnect, arginfo_amqp_class_disconnect, ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_class, reconnect, arginfo_amqp_class_reconnect, ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_class, setLogin, arginfo_amqp_class_setLogin, ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_class, setPassword, arginfo_amqp_class_setPassword, ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_class, setHost, arginfo_amqp_class_setHost, ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_class, setPort, arginfo_amqp_class_setPort, ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_class, setVhost, arginfo_amqp_class_setVhost, ZEND_ACC_PUBLIC)
 	{NULL, NULL, NULL}	/* Must be the last line in amqp_functions[] */
 };
 
@@ -249,24 +299,28 @@ zend_module_entry amqp_module_entry = {
 #endif
 
 
-static void  amqp_error(amqp_rpc_reply_t x, char ** pstr) {
+static void	 amqp_error(amqp_rpc_reply_t x, char ** pstr) {
+	
 	switch (x.reply_type) {
 		case AMQP_RESPONSE_NORMAL:
+		
 		return;
 
 		case AMQP_RESPONSE_NONE:
+		
 		spprintf(pstr, 0, "Missing RPC reply type.");
 		break;
 
 		case AMQP_RESPONSE_LIBRARY_EXCEPTION:
-		spprintf(pstr, 0, "Library error: %s\n",strerror(x.library_error));
+		
+		spprintf(pstr, 0, "Library error: %s\n",amqp_error_string(x.library_error));
 		break;
 
 		case AMQP_RESPONSE_SERVER_EXCEPTION:
+		
 		switch (x.reply.id) {
 			case AMQP_CONNECTION_CLOSE_METHOD: {
 				amqp_connection_close_t *m = (amqp_connection_close_t *)x.reply.decoded;
-
 				spprintf(pstr, 0, "Server connection error: %d, message: %.*s",
 					m->reply_code,
 					(int) m->reply_text.len,
@@ -281,14 +335,95 @@ static void  amqp_error(amqp_rpc_reply_t x, char ** pstr) {
 					(char *)m->reply_text.bytes);
 				break;
 			}
-			default:
-			spprintf(pstr, 0, "Unknown server error, method id 0x%08X",  x.reply.id);
-			break;
 		}
+		default:
+		spprintf(pstr, 0, "Unknown server error, method id 0x%08X",	 x.reply.id);
 		break;
 	}
+	
 }
 
+/* 	php_amqp_connect
+	handles connecting to amqp
+	called by connect() and reconnect()
+ */
+static void php_amqp_connect(amqp_object *ctx)
+{
+	char str[256];
+	char ** pstr = (char **) &str;
+	
+	/* create the connection */
+	ctx->conn = amqp_new_connection();
+	
+	ctx->fd = amqp_open_socket(ctx->host, ctx->port);
+	
+	if (ctx->fd < 1) {
+		/* Start ignoring SIGPIPE */
+		int handler = signal(SIGPIPE, SIG_IGN);
+		
+		amqp_destroy_connection(ctx->conn);
+		
+		/* End ignoring of SIGPIPEs */
+		signal(SIGPIPE, handler);
+		
+		zend_throw_exception(amqp_connection_exception_class_entry, "Socket error: could not connect to host.", 0 TSRMLS_CC);
+		return;
+	}
+	ctx->is_connected = '\1';
+	
+	amqp_set_sockfd(ctx->conn, ctx->fd);
+	
+	amqp_rpc_reply_t x = amqp_login(ctx->conn, ctx->vhost, 0, FRAME_MAX, AMQP_HEARTBEAT, AMQP_SASL_METHOD_PLAIN, ctx->login, ctx->password);
+
+	if (x.reply_type != AMQP_RESPONSE_NORMAL) {
+		amqp_error(x, pstr);
+		zend_throw_exception(amqp_connection_exception_class_entry, *pstr, 0 TSRMLS_CC);
+		return;
+	}
+	
+	amqp_channel_open(ctx->conn, AMQP_CHANNEL);
+	
+	x = amqp_get_rpc_reply(ctx->conn);
+	if (x.reply_type != AMQP_RESPONSE_NORMAL) {
+		amqp_error(x, pstr);
+		zend_throw_exception(amqp_connection_exception_class_entry, *pstr, 0 TSRMLS_CC);
+		return;
+	}
+	
+	ctx->is_channel_connected = '\1';
+}
+
+/* 	php_amqp_disconnect
+	handles disconnecting from amqp
+	called by disconnect(), reconnect(), and d_tor
+ */
+static void php_amqp_disconnect(amqp_object *ctx)
+{
+	/*
+	If we are trying to close the connection and the connection already closed, it will throw
+	SIGPIPE, which is fine, so ignore all SIGPIPES
+	*/
+
+	/* Start ignoring SIGPIPE */
+	int handler = signal(SIGPIPE, SIG_IGN);
+	
+	if (ctx->is_channel_connected == '\1') {
+		amqp_channel_close(ctx->conn, AMQP_CHANNEL, AMQP_REPLY_SUCCESS);
+	}
+	ctx->is_channel_connected = '\0';
+
+	if (ctx->conn && ctx->is_connected == '\1') {
+		amqp_destroy_connection(ctx->conn);
+	}
+	ctx->is_connected = '\0';
+	if (ctx->fd) {
+		close(ctx->fd);
+	}
+
+	/* End ignoring of SIGPIPEs */
+	signal(SIGPIPE, handler);
+	
+}
 
 /* {{{ proto amqp::__construct(string string host=localhost, int port=PORT, login=quest, string psw=quest)
 amqp constructor */
@@ -304,23 +439,21 @@ PHP_METHOD(amqp_class, __construct)
 	char *psw;
 	char *host;
 	char *vhost;
-	char str[256] ;
-	char ** pstr = (char **) &str;
 	int port = 0;
 
 	/* Parse out the method parameters */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|a", &id, amqp_class_entry, &iniArr) == FAILURE) {
-		php_std_error_handling();
+		
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C), "parse parameter error", 0 TSRMLS_CC);
 		return;
 	}
-	php_std_error_handling();
 
 	ctx = (amqp_object *)zend_object_store_get_object(id TSRMLS_CC);
 
 	/* Pull the login out of the $params array */
 	zdata = NULL;
 	if (iniArr && SUCCESS == zend_hash_find(HASH_OF (iniArr), "login", sizeof("login"), (void*)&zdata)) {
-	    convert_to_string(*zdata);
+		convert_to_string(*zdata);
 	}
 	/* Validate the given login */
 	if (zdata && Z_STRLEN_PP(zdata) > 0) {
@@ -333,7 +466,8 @@ PHP_METHOD(amqp_class, __construct)
 	} else {
 		login = estrndup(INI_STR("amqp.login"), strlen(INI_STR("amqp.login")) > 32 ? 32 : strlen(INI_STR("amqp.login")));
 	}
-
+	strcpy(ctx->login, login);
+	
 	/* Pull the password out of the $params array */
 	zdata = NULL;
 	if (iniArr && SUCCESS == zend_hash_find(HASH_OF(iniArr), "password", sizeof("password"), (void*)&zdata)) {
@@ -350,7 +484,8 @@ PHP_METHOD(amqp_class, __construct)
 	} else {
 		psw = estrndup(INI_STR("amqp.password"), strlen(INI_STR("amqp.password")) > 32 ? 32 : strlen(INI_STR("amqp.password")));
 	}
-
+	strcpy(ctx->password, psw);
+	
 	/* Pull the host out of the $params array */
 	zdata = NULL;
 	if (iniArr && SUCCESS == zend_hash_find(HASH_OF(iniArr), "host", sizeof("host"), (void *)&zdata)) {
@@ -367,7 +502,8 @@ PHP_METHOD(amqp_class, __construct)
 	} else {
 		host = estrndup(INI_STR("amqp.host"), strlen(INI_STR("amqp.host")) > 32 ? 32 : strlen(INI_STR("amqp.host")));
 	}
-
+	strcpy(ctx->host, host);
+	
 	/* Pull the vhost out of the $params array */
 	zdata = NULL;
 	if (iniArr && SUCCESS == zend_hash_find(HASH_OF (iniArr), "vhost", sizeof("vhost"), (void*)&zdata)) {
@@ -384,6 +520,7 @@ PHP_METHOD(amqp_class, __construct)
 	} else {
 		vhost = estrndup(INI_STR("amqp.vhost"), strlen(INI_STR("amqp.vhost")) > 32 ? 32 : strlen(INI_STR("amqp.vhost")));
 	}
+	strcpy(ctx->vhost, vhost);
 
 	port = INI_INT("amqp.port");
 
@@ -391,48 +528,16 @@ PHP_METHOD(amqp_class, __construct)
 		convert_to_long(*zdata);
 		port = (size_t)Z_LVAL_PP(zdata);
 	}
+	ctx->port = port;
 
 	ctx->conn = amqp_new_connection();
 
 	ctx->fd = amqp_open_socket(host, port);
 
-	if (ctx->fd < 1) {
-		efree(host);
-		efree(psw);
-		efree(login);
-		efree(vhost);
-
-		amqp_destroy_connection(ctx->conn);
-		zend_throw_exception(amqp_connection_exception_class_entry, "Socket error: could not connect to host.", 0 TSRMLS_CC);
-		return;
-	}
-	ctx->is_connected = '\1';
-
-	amqp_set_sockfd(ctx->conn, ctx->fd);
-
-	amqp_rpc_reply_t x = amqp_login(ctx->conn, vhost, 0, FRAME_MAX, AMQP_HEARBEAT, AMQP_SASL_METHOD_PLAIN, login, psw);
-
 	efree(host);
 	efree(psw);
 	efree(login);
 	efree(vhost);
-
-	if (x.reply_type != AMQP_RESPONSE_NORMAL) {
-		amqp_error(x, pstr);
-		zend_throw_exception(amqp_connection_exception_class_entry, *pstr, 0 TSRMLS_CC);
-		return;
-	}
-
-	amqp_channel_open(ctx->conn, AMQP_CHANNEL);
-
-	x = amqp_get_rpc_reply(ctx->conn);
-	if (x.reply_type != AMQP_RESPONSE_NORMAL) {
-		amqp_error(x, pstr);
-		zend_throw_exception(amqp_connection_exception_class_entry, *pstr, 0 TSRMLS_CC);
-		return;
-	}
-
-	ctx->is_channel_connected = '\1';
 }
 /* }}} */
 
@@ -446,8 +551,7 @@ PHP_METHOD(amqp_class, isConnected)
 
 	/* Try to pull amqp object out of method params */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_class_entry) == FAILURE) {
-		php_std_error_handling();
-		return;
+		RETURN_FALSE;
 	}
 
 	/* Get the connection object out of the store */
@@ -461,12 +565,236 @@ PHP_METHOD(amqp_class, isConnected)
 	/* We have no connection */
 	RETURN_FALSE;
 }
+/* }}} */
 
+
+/* {{{ proto amqp::connect()
+create amqp connection */
+PHP_METHOD(amqp_class, connect)
+{
+	zval *id;
+	amqp_object *ctx;
+
+	/* Try to pull amqp object out of method params */
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_class_entry) == FAILURE) {
+		RETURN_FALSE;
+	}
+	
+	/* Get the connection object out of the store */
+	ctx = (amqp_object *)zend_object_store_get_object(id TSRMLS_CC);
+	
+	php_amqp_connect(ctx);
+
+	RETURN_TRUE;
+}
+
+/* }}} */
+
+/* {{{ proto amqp::disconnect()
+destroy amqp connection */
+PHP_METHOD(amqp_class, disconnect)
+{
+	zval *id;
+	amqp_object *ctx;
+
+	/* Try to pull amqp object out of method params */
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_class_entry) == FAILURE) {
+		RETURN_FALSE;
+	}
+	
+	/* Get the connection object out of the store */
+	ctx = (amqp_object *)zend_object_store_get_object(id TSRMLS_CC);
+	
+	php_amqp_disconnect(ctx);
+	
+	RETURN_TRUE;
+}
+
+/* }}} */
+
+/* {{{ proto amqp::reconnect()
+recreate amqp connection */
+PHP_METHOD(amqp_class, reconnect)
+{
+	zval *id;
+	amqp_object *ctx;
+
+	/* Try to pull amqp object out of method params */
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_class_entry) == FAILURE) {
+		RETURN_FALSE;
+	}
+	
+	/* Get the connection object out of the store */
+	ctx = (amqp_object *)zend_object_store_get_object(id TSRMLS_CC);
+	
+	if (ctx->is_connected) {
+		php_amqp_disconnect(ctx);
+	}
+	php_amqp_connect(ctx);
+	
+	RETURN_TRUE;
+}
+
+/* }}} */
+
+/* {{{ proto amqp::setLogin([string login])
+set the login */
+PHP_METHOD(amqp_class, setLogin)
+{
+	zval *id;
+	amqp_object *ctx;
+	char *login;
+	int login_len;
+
+	/* Get the login from the method params */
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|sl", &id,
+	amqp_class_entry, &login, &login_len) == FAILURE) {
+		RETURN_FALSE;
+	}
+	
+	/* Validate login length */
+	if (login_len > 32) {
+		zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'login' exceeds 32 characters limit.", 0 TSRMLS_CC);
+		return;
+	}
+
+	/* Get the connection object out of the store */
+	ctx = (amqp_object *)zend_object_store_get_object(id TSRMLS_CC);
+
+	/* Copy the login to the amqp object */
+	strcpy(ctx->login, login);
+	
+	RETURN_TRUE;
+}
+/* }}} */
+
+/* {{{ proto amqp::setPassword([string password])
+set the password */
+PHP_METHOD(amqp_class, setPassword)
+{
+	zval *id;
+	amqp_object *ctx;
+	char *password;
+	int password_len;
+
+	/* Get the password from the method params */
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|sl", &id,
+	amqp_class_entry, &password, &password_len) == FAILURE) {
+		RETURN_FALSE;
+	}
+	
+	/* Validate password length */
+	if (password_len > 32) {
+		zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'password' exceeds 32 characters limit.", 0 TSRMLS_CC);
+		return;
+	}
+
+	/* Get the connection object out of the store */
+	ctx = (amqp_object *)zend_object_store_get_object(id TSRMLS_CC);
+
+	/* Copy the password to the amqp object */
+	strcpy(ctx->password, password);
+	
+	RETURN_TRUE;
+}
+/* }}} */
+
+/* {{{ proto amqp::setHost([string host])
+set the host */
+PHP_METHOD(amqp_class, setHost)
+{
+	zval *id;
+	amqp_object *ctx;
+	char *host;
+	int host_len;
+
+	/* Get the host from the method params */
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|sl", &id,
+	amqp_class_entry, &host, &host_len) == FAILURE) {
+		RETURN_FALSE;
+	}
+	
+	/* Validate host length */
+	if (host_len > 1024) {
+		zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'host' exceeds 1024 character limit.", 0 TSRMLS_CC);
+		return;
+	}
+
+	/* Get the connection object out of the store */
+	ctx = (amqp_object *)zend_object_store_get_object(id TSRMLS_CC);
+
+	/* Copy the host to the amqp object */
+	strcpy(ctx->host, host);
+	
+	RETURN_TRUE;
+}
+/* }}} */
+
+/* {{{ proto amqp::setPort([string port])
+set the port */
+PHP_METHOD(amqp_class, setPort)
+{
+	zval *id;
+	amqp_object *ctx;
+	char *port;
+	int port_len;
+
+	/* Get the port from the method params */
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|sl", &id,
+	amqp_class_entry, &port, &port_len) == FAILURE) {
+		RETURN_FALSE;
+	}
+	
+	/* Validate port length */
+	if (port_len > 32) {
+		zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'port' exceeds 32 characters limit.", 0 TSRMLS_CC);
+		return;
+	}
+
+	/* Get the connection object out of the store */
+	ctx = (amqp_object *)zend_object_store_get_object(id TSRMLS_CC);
+
+	/* Copy the port to the amqp object */
+	ctx->port = port;
+	
+	RETURN_TRUE;
+}
+/* }}} */
+
+/* {{{ proto amqp::setVhost([string vhost])
+set the vhost */
+PHP_METHOD(amqp_class, setVhost)
+{
+	zval *id;
+	amqp_object *ctx;
+	char *vhost;
+	int vhost_len;
+
+	/* Get the vhost from the method params */
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|sl", &id,
+	amqp_class_entry, &vhost, &vhost_len) == FAILURE) {
+		RETURN_FALSE;
+	}
+	
+	/* Validate vhost length */
+	if (vhost_len > 32) {
+		zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'vhost' exceeds 32 characters limit.", 0 TSRMLS_CC);
+		return;
+	}
+
+	/* Get the connection object out of the store */
+	ctx = (amqp_object *)zend_object_store_get_object(id TSRMLS_CC);
+
+	/* Copy the vhost to the amqp object */
+	strcpy(ctx->vhost, vhost);
+	
+	RETURN_TRUE;
+}
 /* }}} */
 /* ------------------  class Queue ----------- */
 
 
-/* {{{ proto AMQPQueue::__construct(AMQPConnection cnn,  [string name])
+/* {{{ proto AMQPQueue::__construct(AMQPConnection cnn,	 [string name])
 AMQPQueue constructor
 */
 PHP_METHOD(amqp_queue_class, __construct)
@@ -483,7 +811,6 @@ PHP_METHOD(amqp_queue_class, __construct)
 		RETURN_FALSE;
 	}
 
-	php_std_error_handling();
 	if (!instanceof_function(Z_OBJCE_P(cnnOb), amqp_class_entry TSRMLS_CC)) {
 		zend_throw_exception(amqp_queue_exception_class_entry, "The first parameter must be and instance of AMQPConnection.", 0 TSRMLS_CC);
 		return;
@@ -531,6 +858,9 @@ PHP_METHOD(amqp_queue_class, declare)
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|sl", &id,
 	amqp_queue_class_entry, &name, &name_len, &parms) == FAILURE) {
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C),
+							  "Error parsing parameters." ,0 TSRMLS_CC);
+		
 		RETURN_FALSE;
 	}
 
@@ -560,6 +890,11 @@ PHP_METHOD(amqp_queue_class, declare)
 	AMQP_PASSIVE_D
 	AMQP_DURABLE_D
 	AMQP_AUTODELETE_D
+	
+	ctx->passive = passive;
+	ctx->durable = durable;
+	ctx->exclusive = exclusive;
+	ctx->auto_delete = auto_delete;
 
 	res = AMQP_SIMPLE_RPC(cnn->conn,
 		AMQP_CHANNEL,
@@ -631,14 +966,14 @@ PHP_METHOD(amqp_queue_class, delete)
 	if (name_len) {
 		s.ticket		= 0;
 		s.queue.len	 = name_len;
-		s.queue.bytes   = name;
+		s.queue.bytes	= name;
 		s.if_unused	 = (AMQP_IFUNUSED & parms)? 1:0;
 		s.if_empty	  = (AMQP_IFEMPTY & parms)? 1:0;
 		s.nowait		= 0;
 	} else {
 		s.ticket		= 0;
 		s.queue.len	 = ctx->name_len;
-		s.queue.bytes   = ctx->name;
+		s.queue.bytes	= ctx->name;
 		s.if_unused	 = (AMQP_IFUNUSED & parms) ? 1 : 0;
 		s.if_empty	  = (AMQP_IFEMPTY & parms) ? 1 : 0;
 		s.nowait		= 0;
@@ -693,7 +1028,7 @@ PHP_METHOD(amqp_queue_class, purge)
 	ctx = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
 	/* Check that the given connection has a channel, before trying to pull the connection off the stack */
 	if (ctx->is_connected != '\1') {
-		zend_throw_exception(amqp_queue_exception_class_entry,  "Could not purge queue. No connection available.", 0 TSRMLS_CC);
+		zend_throw_exception(amqp_queue_exception_class_entry,	"Could not purge queue. No connection available.", 0 TSRMLS_CC);
 		return;
 	}
 
@@ -878,7 +1213,7 @@ PHP_METHOD(amqp_queue_class, unbind)
 
 
 
-/* {{{ proto array queue::consume(int queue_len, [ bit params=AMQP_NOASK ]);
+/* {{{ proto array queue::consume(array('ack' => true, 'min' => 1, 'max' => 5));
 consume the message
 return array messages
 */
@@ -890,15 +1225,49 @@ PHP_METHOD(amqp_queue_class, consume)
 	int name_len;
 	int queue_len;
 	amqp_rpc_reply_t res;
+	
+	int ack;
+	long min_consume;
+	long max_consume;
+	zval* iniArr = NULL;
+	zval** zdata;
 
 	char *pbuf;
 	long parms = 0;
 
 	zval content;
+	int buf_max = FRAME_MAX;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Ol|l", &id,
-	amqp_queue_class_entry, &queue_len, &parms) == FAILURE) {
-		RETURN_FALSE;
+	/* Parse out the method parameters */
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|a", &id, amqp_queue_class_entry, &iniArr) == FAILURE) {
+		
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C), "parse parameter error", 0 TSRMLS_CC);
+		return;
+	}
+	
+	/* Pull the minimum consume settings out of the config array */
+	min_consume = INI_INT("amqp.min_consume");
+	zdata = NULL;
+	if (iniArr && SUCCESS == zend_hash_find(HASH_OF (iniArr), "min", sizeof("min"), (void*)&zdata)) {
+		convert_to_long(*zdata);
+		min_consume = (size_t)Z_LVAL_PP(zdata);
+	}
+
+	
+	/* Pull the minimum consume settings out of the config array */
+	max_consume = INI_INT("amqp.max_consume");
+	zdata = NULL;
+	if (iniArr && SUCCESS == zend_hash_find(HASH_OF (iniArr), "max", sizeof("max"), (void*)&zdata)) {
+		convert_to_long(*zdata);
+		max_consume = (size_t)Z_LVAL_PP(zdata);
+	}
+
+	/* Pull the auto ack settings out of the config array */
+	ack = INI_INT("amqp.ack");
+	zdata = NULL;
+	if (iniArr && SUCCESS == zend_hash_find(HASH_OF (iniArr), "ack", sizeof("ack"), (void*)&zdata)) {
+		convert_to_long(*zdata);
+		ack = (size_t)Z_LVAL_PP(zdata);
 	}
 
 	ctx = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -910,28 +1279,10 @@ PHP_METHOD(amqp_queue_class, consume)
 
 	amqp_object *cnn = (amqp_object *) zend_object_store_get_object(ctx->cnn TSRMLS_CC);
 
-	if (!parms) {
-		parms = AMQP_NOACK;
-	}
-
-	amqp_basic_consume_t s;
-	s.ticket				= 0;
-	s.queue.len			 	= ctx->name_len;
-	s.queue.bytes			= ctx->name;
-	s.consumer_tag.len		= 0;
-	s.consumer_tag.bytes	= NULL;
-	s.no_local				= (AMQP_NOLOCAL & parms) ? 1 : 0;
-	s.no_ack				= (AMQP_NOACK & parms) ? 1 : 0;
-	s.exclusive				= (AMQP_EXCLUSIVE & parms) ? 1 : 0;
-	s.nowait				= 0;
-
-	amqp_method_number_t method_ok = AMQP_BASIC_CONSUME_OK_METHOD;
-	res = (amqp_rpc_reply_t)amqp_simple_rpc(cnn->conn,
-		AMQP_CHANNEL,
-		AMQP_BASIC_CONSUME_METHOD,
-		&method_ok,
-		&s);
-
+	amqp_basic_consume(cnn->conn, AMQP_CHANNEL, amqp_cstring_bytes(ctx->name), amqp_cstring_bytes(ctx->consumer_tag), 0, 0, 0, AMQP_EMPTY_TABLE);
+	
+	/* verify there are no errors before grabbing the messages */
+	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(cnn->conn);	
 	if (res.reply_type != AMQP_RESPONSE_NORMAL) {
 		cnn->is_channel_connected=0;
 		char str[256];
@@ -940,7 +1291,7 @@ PHP_METHOD(amqp_queue_class, consume)
 		zend_throw_exception(amqp_queue_exception_class_entry, *pstr, 0 TSRMLS_CC);
 		return;
 	}
-
+	
 	amqp_basic_consume_ok_t *r = (amqp_basic_consume_ok_t *) res.reply.decoded;
 
 	memcpy(ctx->consumer_tag, r->consumer_tag.bytes, r->consumer_tag.len);
@@ -957,24 +1308,79 @@ PHP_METHOD(amqp_queue_class, consume)
 	array_init(return_value);
 	char *buf = NULL;
 
-	for (i = 0; i < queue_len; i++) {
+	buf = (char*) malloc(FRAME_MAX);
+	if (!buf) {
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C), "Out of memory (malloc)" ,0 TSRMLS_CC);	 
+	}
+
+	zval *message;
+	MAKE_STD_ZVAL(message);
+	amqp_boolean_t messages_left;
+
+	for (i = 0; i < max_consume; i++) {
 
 		amqp_maybe_release_buffers(cnn->conn);
-		result = amqp_simple_wait_frame(cnn->conn, &frame);
-		if (result <= 0) {
-			return;
+		
+		/* if we have met the minimum number of messages, check to see if there are messages left */
+		if (i >= min_consume) {
+			/* see if there are messages in the queue */ 
+			amqp_bytes_t amqp_name;
+			amqp_name = (amqp_bytes_t) {ctx->name_len, ctx->name};
+			amqp_queue_declare_ok_t *r = amqp_queue_declare(cnn->conn, AMQP_CHANNEL, amqp_name, ctx->passive, ctx->durable, ctx->exclusive, ctx->auto_delete,
+									AMQP_EMPTY_TABLE);
+			int messages_in_queue = r->message_count;
+								
+			/* see if there are frames enqueued */
+			amqp_boolean_t frames = amqp_frames_enqueued(cnn->conn);
+			
+			/* see if there is any unread data in the buffer */
+			amqp_boolean_t buffer = amqp_data_in_buffer(cnn->conn);
+			
+			if (!messages_in_queue && !frames && !buffer) {
+				break;
+			}
 		}
 
+		/* get next frame from the queue (blocks) */
+		result = amqp_simple_wait_frame(cnn->conn, &frame);
+		
+		/* check frame validity */
+		if (result < 0) {
+			return;
+		}
 		if (frame.frame_type != AMQP_FRAME_METHOD) {
 			continue;
 		}
-
 		if (frame.payload.method.id != AMQP_BASIC_DELIVER_METHOD) {
 			continue;
 		}
 
+		/* initialize message array */
+		array_init(message);
+
+		/* get message metadata */
+		amqp_basic_deliver_t * delivery = ( amqp_basic_deliver_t *) frame.payload.method.decoded;
+		add_assoc_stringl_ex( message, "consumer_tag" ,13,
+			delivery->consumer_tag.bytes,
+			delivery->consumer_tag.len,1);
+
+		add_assoc_long_ex( message, "delivery_tag" ,13,
+			delivery->delivery_tag);
+
+		add_assoc_bool_ex( message, "redelivered" ,12,
+			delivery->redelivered);
+
+		add_assoc_stringl_ex( message, "routing_key" ,12,
+			delivery->routing_key.bytes,
+			delivery->routing_key.len ,1 );
+
+		add_assoc_stringl_ex( message, "exchange" ,9,
+			delivery->exchange.bytes,
+			delivery->exchange.len ,1 );			
+		
+		/* get header frame (blocks) */
 		result = amqp_simple_wait_frame(cnn->conn, &frame);
-		if (result <= 0) {
+		if (result < 0) {
 			zend_throw_exception(amqp_queue_exception_class_entry, "The returned read frame is invalid.", 0 TSRMLS_CC);
 			return;
 		}
@@ -983,15 +1389,85 @@ PHP_METHOD(amqp_queue_class, consume)
 			zend_throw_exception(amqp_queue_exception_class_entry, "The returned frame type is invalid.", 0 TSRMLS_CC);
 			return;
 		}
+		
+		amqp_basic_properties_t * p = (amqp_basic_properties_t *) frame.payload.properties.decoded;
+
+		if (p->_flags & AMQP_BASIC_CONTENT_TYPE_FLAG) {
+			add_assoc_stringl_ex( message, "Content-type" ,13,
+				p->content_type.bytes,
+				p->content_type.len ,1 );
+			}
+			
+		if (p->_flags & AMQP_BASIC_CONTENT_ENCODING_FLAG) {
+			add_assoc_stringl_ex( message, "Content-encoding" ,sizeof("Content-encoding"),
+				p->content_encoding.bytes,
+				p->content_encoding.len ,1 );
+		}
+		
+		if (p->_flags & AMQP_BASIC_TYPE_FLAG) {
+			add_assoc_stringl_ex( message, "type" ,sizeof("type"),
+				p->type.bytes,
+				p->type.len ,1 );
+		}
+	
+		if (p->_flags & AMQP_BASIC_TIMESTAMP_FLAG) {
+			add_assoc_long( message, "timestamp" ,p->timestamp );
+		}
+
+		if (p->_flags & AMQP_BASIC_PRIORITY_FLAG) {
+			add_assoc_long( message, "priority" ,p->priority );
+		}
+			
+		if (p->_flags & AMQP_BASIC_EXPIRATION_FLAG) {
+			add_assoc_stringl_ex( message, "expiration" ,sizeof("expiration"),
+				p->expiration.bytes,
+				p->expiration.len ,1 );
+		}
+			
+		if (p->_flags & AMQP_BASIC_USER_ID_FLAG) {
+			add_assoc_stringl_ex( message, "user_id" ,sizeof("user_id"),
+				p->user_id.bytes,
+				p->user_id.len ,1 );
+		}
+			
+		if (p->_flags & AMQP_BASIC_APP_ID_FLAG) {
+			add_assoc_stringl_ex( message, "app_id" ,sizeof("app_id"),
+				p->app_id.bytes,
+				p->app_id.len ,1 );
+		}
+
+		if (p->_flags & AMQP_BASIC_MESSAGE_ID_FLAG) {
+			add_assoc_stringl_ex( message, "mesage_id" ,sizeof("message_id"),
+				p->message_id.bytes,
+				p->message_id.len ,1 );
+		}
+
+		if (p->_flags & AMQP_BASIC_REPLY_TO_FLAG) {
+			add_assoc_stringl_ex( message, "Reply-to" ,sizeof("Reply-to"),
+				p->reply_to.bytes,
+				p->reply_to.len ,1 );
+		}
 
 		body_target = frame.payload.properties.body_size;
 		body_received = 0;
+		
+		/* resize buffer if necessary */
+		if (body_target > buf_max) {
+			int count_buf = body_target / FRAME_MAX +1;
+			int resize = count_buf * FRAME_MAX;
+			buf_max = resize;
+			pbuf = realloc(buf, resize);
+			if (!pbuf) {
+				free(buf);
+				zend_throw_exception(zend_exception_get_default(TSRMLS_C), "The memory is out (realloc)"  ,0 TSRMLS_CC);
+			}
+			buf = pbuf; 
+		}
 
-		buf = (char *)emalloc(frame.payload.properties.body_size);
 		pbuf = buf;
 		while (body_received < body_target) {
 			result = amqp_simple_wait_frame(cnn->conn, &frame);
-			if (result <= 0) {
+			if (result < 0) {
 				break;
 			}
 
@@ -1000,15 +1476,24 @@ PHP_METHOD(amqp_queue_class, consume)
 				return;
 			}
 
-			body_received += frame.payload.body_fragment.len;
-
 			memcpy(pbuf, frame.payload.body_fragment.bytes, frame.payload.body_fragment.len);
+			body_received += frame.payload.body_fragment.len;
 			pbuf += frame.payload.body_fragment.len;
 
-		} /* end while  */
+		} /* end while	*/
 
-		add_index_stringl(return_value, i, buf, body_received, 1);
+		/* add message body to message */
+		add_assoc_stringl_ex(message, "message_body",sizeof("message_body"), buf, body_target, 1);
+		/* add message to return value */
+		add_index_zval(return_value, i, message);
+		
+		/* if we have chosen to ack, do so */
+		if (ack) {
+			amqp_basic_ack(cnn->conn, 1, delivery->delivery_tag, 0);
+		}
+		
 		efree(buf);
+		//efree(message);
 	}
 
 }
@@ -1025,7 +1510,7 @@ PHP_METHOD(amqp_queue_class, get)
 	zval *id;
 	amqp_queue_object *ctx;
 	char *type=NULL;
-	int	type_len;
+	int type_len;
 	amqp_rpc_reply_t res;
 
 	char str[256];
@@ -1073,7 +1558,7 @@ PHP_METHOD(amqp_queue_class, get)
 	
 	array_init(return_value);
 
-	while (1) { /* receive  frames:  */
+	while (1) { /* receive	frames:	 */
 
 		amqp_maybe_release_buffers(cnn->conn);
 		result = amqp_simple_wait_frame(cnn->conn, &frame);
@@ -1373,6 +1858,7 @@ PHP_METHOD(amqp_queue_class, ack)
 				&s);
 
 	if (res) {
+		cnn->is_channel_connected = 0;
 		zend_throw_exception_ex(amqp_queue_exception_class_entry, 0 TSRMLS_CC, "Ack error; code=%d", res);
 		return;
 	}
@@ -1385,7 +1871,7 @@ PHP_METHOD(amqp_queue_class, ack)
 
 /* ------------------  class Exchange ----------- */
 
-/* {{{ proto AMQPEexchange( AMQPConnection cnn, [string name]);  //////, string type=direct, [ bit params ]);
+/* {{{ proto AMQPEexchange( AMQPConnection cnn, [string name]);	 //////, string type=direct, [ bit params ]);
 declare Exchange   */
 PHP_METHOD(amqp_exchange_class, __construct)
 {
@@ -1402,7 +1888,6 @@ PHP_METHOD(amqp_exchange_class, __construct)
 		RETURN_FALSE;
 	}
 
-	php_std_error_handling();
 	if (!instanceof_function(Z_OBJCE_P(cnnOb), amqp_class_entry TSRMLS_CC)) {
 		zend_throw_exception(amqp_exchange_exception_class_entry, "The first parameter must be and instance of AMQPConnection.", 0 TSRMLS_CC);
 		return;
@@ -1410,6 +1895,14 @@ PHP_METHOD(amqp_exchange_class, __construct)
 
 	ctx = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
 	ctx->cnn = cnnOb;
+	ctx_cnn = (amqp_object *) zend_object_store_get_object(ctx->cnn TSRMLS_CC);
+	
+
+	/* Check that the given connection has a channel, before trying to pull the connection off the stack */
+	if (ctx_cnn->is_connected != '\1') {
+		zend_throw_exception(amqp_queue_exception_class_entry, "Could not create exchange. No connection available.", 0 TSRMLS_CC);
+		return;
+	}
 
 	if(!cnnOb) {
 		zend_throw_exception(amqp_exchange_exception_class_entry, "The given AMQPConnection object is null.", 0 TSRMLS_CC);
@@ -1423,7 +1916,6 @@ PHP_METHOD(amqp_exchange_class, __construct)
 	/* We have a valid connection: */
 	ctx->is_connected = '\1';
 
-	ctx_cnn = (amqp_object *)zend_object_store_get_object(cnnOb TSRMLS_CC);
 }
 /* }}} */
 
@@ -1455,11 +1947,11 @@ PHP_METHOD(amqp_exchange_class, declare)
 	ctx = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
 
 	if (!type_len) {
-		type = AMQP_EX_TYPE_DIRECT;	/* default - direct */
+		type = AMQP_EX_TYPE_DIRECT; /* default - direct */
 		type_len = 6;	//strlen('direct')
 	}
 
-	/* Check that the given connection has a channel, before trying to pull the connection off the stack */
+	/* Check that the given connection is active before declaring the exchange */
 	if (ctx->is_connected != '\1') {
 		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not declare exchange. No connection available.", 0 TSRMLS_CC);
 		return;
@@ -1507,7 +1999,6 @@ PHP_METHOD(amqp_exchange_class, declare)
 	}
 
 	RETURN_TRUE;
-
 }
 /* }}} */
 
@@ -1617,6 +2108,11 @@ PHP_METHOD(amqp_exchange_class, publish)
 		zend_throw_exception(amqp_exchange_exception_class_entry, "Please provide an exchange name.", 0 TSRMLS_CC);
 		return;
 	}
+	
+	if (!key_len) {
+		zend_throw_exception(amqp_exchange_exception_class_entry, "Please provide an routing key.", 0 TSRMLS_CC);
+		return;
+	}
 
 	/* Check that the given connection has a channel, before trying to pull the connection off the stack */
 	if (ctx->is_connected != '\1') {
@@ -1714,7 +2210,7 @@ PHP_METHOD(amqp_exchange_class, publish)
 		convert_to_string(*zdata);
 	}
 	if (zdata && strlen(Z_STRVAL_PP(zdata)) > 0) {
-		props.expiration =  amqp_cstring_bytes((char*)Z_STRVAL_PP(zdata));
+		props.expiration =	amqp_cstring_bytes((char*)Z_STRVAL_PP(zdata));
 		props._flags += AMQP_BASIC_EXPIRATION_FLAG;
 	}
 
@@ -1735,25 +2231,51 @@ PHP_METHOD(amqp_exchange_class, publish)
 		props.reply_to = amqp_cstring_bytes((char*)Z_STRVAL_PP(zdata));
 		props._flags += AMQP_BASIC_REPLY_TO_FLAG;
 	}
+	
+	if (ctx->is_connected != '\1') {
+		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not publish. No connection available.", 0 TSRMLS_CC);
+		return;
+	}
 
+	ctx_cnn = (amqp_object *) zend_object_store_get_object(ctx->cnn TSRMLS_CC);
+	if(!ctx_cnn) {
+		zend_throw_exception(amqp_exchange_exception_class_entry, "The given AMQPConnection object is null.", 0 TSRMLS_CC);
+		return;
+	}
+	
+	if (ctx_cnn->fd < 0) {
+		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not publish. Connetion socket is closed.", 0 TSRMLS_CC);
+		return;
+	}
 
-	int r = amqp_basic_publish(ctx_cnn->conn,
+	/* Start ignoring SIGPIPE */
+	int handler = signal(SIGPIPE, SIG_IGN);
+
+	int r = amqp_basic_publish(
+		ctx_cnn->conn,
 		AMQP_CHANNEL,
 		(amqp_bytes_t) {ctx->name_len, ctx->name},
 		(amqp_bytes_t) {key_len, key_name },
 		(AMQP_MANDATORY & parms) ? 1 : 0, /* mandatory */
 		(AMQP_IMMEDIATE & parms) ? 1 : 0, /* immediate */
 		&props,
-		(amqp_bytes_t) {msg_len, msg });
+		(amqp_bytes_t) {msg_len, msg }
+	);
+	
+	/* End ignoring of SIGPIPEs */
+	signal(SIGPIPE, handler);
 
+	/* handle any errors that occured outside of signals */
 	if (r) {
 		char str[256];
 		char ** pstr = (char **) &str;
+		res = (amqp_rpc_reply_t)amqp_get_rpc_reply(ctx_cnn->conn); 
+		ctx_cnn->is_connected = '\0';
 		amqp_error(res, pstr);
 		zend_throw_exception(amqp_exchange_exception_class_entry, *pstr, 0 TSRMLS_CC);
 		return;
 	}
-
+	
 	RETURN_TRUE;
 }
 /* }}} */
@@ -1831,34 +2353,14 @@ PHP_METHOD(amqp_exchange_class, bind)
 
 static void amqp_dtor(void *object TSRMLS_DC)
 {
-	/*
-	If we are trying to close the connection and the connection already closed, it will throw
-	SIGPIPE, which is fine, so ignore all SIGPIPES
-	*/
-
-	/* Start ignoring SIGPIPE */
-	int handler = signal(SIGPIPE, SIG_IGN);
-
 	amqp_object *ob = (amqp_object*)object;
-
-	if (ob->is_channel_connected) {
-		amqp_channel_close(ob->conn, AMQP_CHANNEL, AMQP_REPLY_SUCCESS);
-	}
-
-	if (ob->conn && ob->is_connected) {
-		amqp_destroy_connection(ob->conn);
-	}
-
-	if (ob->fd) {
-		close(ob->fd);
-	}
-
-	/* End ignoring of SIGPIPEs */
-	signal(SIGPIPE, handler);
-
+	
+	php_amqp_disconnect(ob);
+	
 	zend_object_std_dtor(&ob->zo TSRMLS_CC);
-
+	
 	efree(object);
+	
 }
 
 static zend_object_value amqp_ctor(zend_class_entry *ce TSRMLS_DC)
@@ -1926,12 +2428,15 @@ static zend_object_value amqp_exchange_ctor(zend_class_entry *ce TSRMLS_DC)
 }
 
 PHP_INI_BEGIN()
-	PHP_INI_ENTRY("amqp.host",	  "localhost",	PHP_INI_ALL, NULL)
-	PHP_INI_ENTRY("amqp.vhost",	 "/",			PHP_INI_ALL, NULL)
-	PHP_INI_ENTRY("amqp.port",	  PORT_STR,	   PHP_INI_ALL, NULL)
-	PHP_INI_ENTRY("amqp.login",	 "guest",		PHP_INI_ALL, NULL)
-	PHP_INI_ENTRY("amqp.password",  "guest",		PHP_INI_ALL, NULL)
-	PHP_INI_END()
+	PHP_INI_ENTRY("amqp.host",			"localhost",	PHP_INI_ALL, NULL)
+	PHP_INI_ENTRY("amqp.vhost",			"/",			PHP_INI_ALL, NULL)
+	PHP_INI_ENTRY("amqp.port",			PORT_STR,		PHP_INI_ALL, NULL)
+	PHP_INI_ENTRY("amqp.login",			"guest",		PHP_INI_ALL, NULL)
+	PHP_INI_ENTRY("amqp.password",		"guest",		PHP_INI_ALL, NULL)
+	PHP_INI_ENTRY("amqp.ack",			"1",			PHP_INI_ALL, NULL)
+	PHP_INI_ENTRY("amqp.min_consume",	"0",			PHP_INI_ALL, NULL)
+	PHP_INI_ENTRY("amqp.max_consume",	"1",			PHP_INI_ALL, NULL)
+PHP_INI_END()
 
 /* {{{ PHP_MINIT_FUNCTION
 */
@@ -1968,7 +2473,7 @@ PHP_MINIT_FUNCTION(amqp)
 	REGISTER_LONG_CONSTANT("AMQP_DURABLE",	  AMQP_DURABLE,	   CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("AMQP_PASSIVE",	  AMQP_PASSIVE,	   CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("AMQP_EXCLUSIVE",	AMQP_EXCLUSIVE,	 CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("AMQP_AUTODELETE",   AMQP_AUTODELETE,	CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("AMQP_AUTODELETE",	AMQP_AUTODELETE,	CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("AMQP_INTERNAL",	 AMQP_INTERNAL,	  CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("AMQP_NOLOCAL",	  AMQP_NOLOCAL,	   CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("AMQP_NOACK",		AMQP_NOACK,		 CONST_CS | CONST_PERSISTENT);
@@ -1976,11 +2481,11 @@ PHP_MINIT_FUNCTION(amqp)
 	REGISTER_LONG_CONSTANT("AMQP_IFUNUSED",	 AMQP_IFUNUSED,	  CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("AMQP_MANDATORY",	AMQP_MANDATORY,	 CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("AMQP_IMMEDIATE",	AMQP_IMMEDIATE,	 CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("AMQP_MULTIPLE",	 AMQP_MULTIPLE,  CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("AMQP_MULTIPLE",	 AMQP_MULTIPLE,	 CONST_CS | CONST_PERSISTENT);
 
 	REGISTER_STRING_CONSTANT("AMQP_EX_TYPE_DIRECT", AMQP_EX_TYPE_DIRECT,	CONST_CS | CONST_PERSISTENT);
 	REGISTER_STRING_CONSTANT("AMQP_EX_TYPE_FANOUT", AMQP_EX_TYPE_FANOUT,	CONST_CS | CONST_PERSISTENT);
-	REGISTER_STRING_CONSTANT("AMQP_EX_TYPE_TOPIC",  AMQP_EX_TYPE_TOPIC,	 CONST_CS | CONST_PERSISTENT);
+	REGISTER_STRING_CONSTANT("AMQP_EX_TYPE_TOPIC",	AMQP_EX_TYPE_TOPIC,	 CONST_CS | CONST_PERSISTENT);
 	REGISTER_STRING_CONSTANT("AMQP_EX_TYPE_HEADER", AMQP_EX_TYPE_HEADER,	CONST_CS | CONST_PERSISTENT);
 
 	return SUCCESS;
@@ -2013,7 +2518,7 @@ PHP_MINFO_FUNCTION(amqp)
 	php_info_print_table_header(2, "Compiled",				*pstr);
 	php_info_print_table_header(2, "AMQP protocol version", "8.0");
 	php_info_print_table_header(2, "Default host",			"localhost");
-	php_info_print_table_header(2, "Default virtual host",  "/");
+	php_info_print_table_header(2, "Default virtual host",	"/");
 	php_info_print_table_header(2, "Default port",			PORT_STR);
 	php_info_print_table_header(2, "Default login",			"guest");
 	php_info_print_table_header(2, "Default password",		"guest");
