@@ -19,7 +19,7 @@
   | Maintainer: Pieter de Zwart pdezwart@php.net						|
   | Contributers:														|
   | - Andrey Hristov													|
-  | - Brad Rodriguez brodrigu@gmail.com									|
+  | - Brad Rodriguez brodriguez@php.net									|
   +---------------------------------------------------------------------+
 */
 
@@ -77,13 +77,13 @@ typedef struct _amqp_object {
 	zend_object zo;
 	char is_connected;
 	char is_channel_connected;
-	char login[32];
+	char *login;
 	int char_len;
-	char password[32];
+	char *password;
 	int password_len;
-	char host[1024];
+	char *host;
 	int host_len;
-	char vhost[32];
+	char *vhost;
 	int vhost_len;
 	int port;
 	int fd;
