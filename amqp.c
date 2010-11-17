@@ -803,12 +803,15 @@ PHP_METHOD(amqp_queue_class, __construct)
 
 	ctx = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
 	ctx->cnn = cnnOb;
+	ctx_cnn = (amqp_object *) zend_object_store_get_object(ctx->cnn TSRMLS_CC);
+	
 
-	if(!cnnOb) {
-		zend_throw_exception(amqp_queue_exception_class_entry, "The given AMQPConnection object is null.", 0 TSRMLS_CC);
+	/* Check that the given connection has a channel, before trying to pull the connection off the stack */
+	if (ctx_cnn->is_connected != '\1') {
+		zend_throw_exception(amqp_queue_exception_class_entry, "Could not create queue. No connection available.", 0 TSRMLS_CC);
 		return;
 	}
-
+		
 	if (name_len) {
 		AMQP_SET_NAME(ctx, name);
 	}
@@ -1094,15 +1097,15 @@ PHP_METHOD(amqp_queue_class, bind)
 
 	amqp_queue_bind_t s;
 	s.ticket = 0;
-	s.queue.len			 = ctx->name_len;
-	s.queue.bytes		   = ctx->name;
-	s.exchange.len		  = exchange_name_len;
+	s.queue.len				= ctx->name_len;
+	s.queue.bytes			= ctx->name;
+	s.exchange.len			= exchange_name_len;
 	s.exchange.bytes		= exchange_name;
-	s.routing_key.len	   = keyname_len;
-	s.routing_key.bytes	 = keyname;
+	s.routing_key.len		= keyname_len;
+	s.routing_key.bytes		= keyname;
 	s.nowait				= 0;
 	s.arguments.num_entries = 0;
-	s.arguments.entries	 = NULL;
+	s.arguments.entries	 	= NULL;
 
 	amqp_method_number_t bind_ok = AMQP_QUEUE_BIND_OK_METHOD;
 
@@ -1932,7 +1935,7 @@ PHP_METHOD(amqp_exchange_class, declare)
 
 	if (!type_len) {
 		type = AMQP_EX_TYPE_DIRECT; /* default - direct */
-		type_len = 6;	
+		type_len = strlen(AMQP_EX_TYPE_DIRECT);
 	}
 
 	/* Check that the given connection is active before declaring the exchange */
@@ -2081,7 +2084,7 @@ PHP_METHOD(amqp_exchange_class, publish)
 
 	amqp_rpc_reply_t res;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os|sla",
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss|la",
 	&id, amqp_exchange_class_entry, &msg, &msg_len, &key_name, &key_len, &parms, &iniArr) == FAILURE) {
 		RETURN_FALSE;
 	}
