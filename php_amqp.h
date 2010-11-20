@@ -62,16 +62,16 @@ PHP_MINIT_FUNCTION(amqp);
 PHP_MSHUTDOWN_FUNCTION(amqp);
 PHP_MINFO_FUNCTION(amqp);
 	
-PHP_METHOD(amqp_class, __construct);
-PHP_METHOD(amqp_class, isConnected);
-PHP_METHOD(amqp_class, connect);
-PHP_METHOD(amqp_class, disconnect);
-PHP_METHOD(amqp_class, reconnect);
-PHP_METHOD(amqp_class, setLogin);
-PHP_METHOD(amqp_class, setPassword);
-PHP_METHOD(amqp_class, setHost);
-PHP_METHOD(amqp_class, setPort);
-PHP_METHOD(amqp_class, setVhost);
+PHP_METHOD(amqp_connection_class, __construct);
+PHP_METHOD(amqp_connection_class, isConnected);
+PHP_METHOD(amqp_connection_class, connect);
+PHP_METHOD(amqp_connection_class, disconnect);
+PHP_METHOD(amqp_connection_class, reconnect);
+PHP_METHOD(amqp_connection_class, setLogin);
+PHP_METHOD(amqp_connection_class, setPassword);
+PHP_METHOD(amqp_connection_class, setHost);
+PHP_METHOD(amqp_connection_class, setPort);
+PHP_METHOD(amqp_connection_class, setVhost);
 
 PHP_METHOD(amqp_queue_class, __construct);
 PHP_METHOD(amqp_queue_class, declare);
