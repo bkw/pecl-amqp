@@ -64,15 +64,6 @@
 ZEND_DECLARE_MODULE_GLOBALS(amqp)
 */
 
-/* True global resources - no need for thread safety here */
-zend_class_entry *amqp_connection_class_entry;
-zend_class_entry *amqp_queue_class_entry;
-zend_class_entry *amqp_exchange_class_entry;
-zend_class_entry *amqp_exception_class_entry,
-				 *amqp_connection_exception_class_entry,
-				 *amqp_exchange_exception_class_entry,
-				 *amqp_queue_exception_class_entry;
-
 typedef struct _amqp_connection_object {
 	zend_object zo;
 	char is_connected;
@@ -621,7 +612,7 @@ PHP_METHOD(amqp_connection_class, reconnect)
 
 /* }}} */
 
-/* {{{ proto amqp::setLogin([string login])
+/* {{{ proto amqp::setLogin(string login)
 set the login */
 PHP_METHOD(amqp_connection_class, setLogin)
 {
@@ -633,14 +624,14 @@ PHP_METHOD(amqp_connection_class, setLogin)
 	/* @TODO: check to see if the 'l' is required below */
 	/* @TODO: use macro when one is created for constructor */
 	/* Get the login from the method params */
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|sl", &id,
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id,
 	amqp_connection_class_entry, &login, &login_len) == FAILURE) {
 		RETURN_FALSE;
 	}
 	
 	/* Validate login length */
 	if (login_len > 32) {
-		zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'login' exceeds 32 characters limit.", 0 TSRMLS_CC);
+		zend_throw_exception(amqp_connection_exception_class_entry, "Invalid 'login' given, exceeds 32 characters limit.", 0 TSRMLS_CC);
 		return;
 	}
 
@@ -654,7 +645,7 @@ PHP_METHOD(amqp_connection_class, setLogin)
 }
 /* }}} */
 
-/* {{{ proto amqp::setPassword([string password])
+/* {{{ proto amqp::setPassword(string password)
 set the password */
 PHP_METHOD(amqp_connection_class, setPassword)
 {
@@ -664,14 +655,14 @@ PHP_METHOD(amqp_connection_class, setPassword)
 	int password_len;
 
 	/* Get the password from the method params */
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|sl", &id,
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id,
 	amqp_connection_class_entry, &password, &password_len) == FAILURE) {
 		RETURN_FALSE;
 	}
 	
 	/* Validate password length */
 	if (password_len > 32) {
-		zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'password' exceeds 32 characters limit.", 0 TSRMLS_CC);
+		zend_throw_exception(amqp_connection_exception_class_entry, "Invalid 'password' given, exceeds 32 characters limit.", 0 TSRMLS_CC);
 		return;
 	}
 
@@ -685,7 +676,7 @@ PHP_METHOD(amqp_connection_class, setPassword)
 }
 /* }}} */
 
-/* {{{ proto amqp::setHost([string host])
+/* {{{ proto amqp::setHost(string host)
 set the host */
 PHP_METHOD(amqp_connection_class, setHost)
 {
@@ -695,14 +686,13 @@ PHP_METHOD(amqp_connection_class, setHost)
 	int host_len;
 
 	/* Get the host from the method params */
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|sl", &id,
-	amqp_connection_class_entry, &host, &host_len) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id, amqp_connection_class_entry, &host, &host_len) == FAILURE) {
 		RETURN_FALSE;
 	}
 	
 	/* Validate host length */
 	if (host_len > 1024) {
-		zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'host' exceeds 1024 character limit.", 0 TSRMLS_CC);
+		zend_throw_exception(amqp_connection_exception_class_entry, "Invalid 'host' given, exceeds 1024 character limit.", 0 TSRMLS_CC);
 		return;
 	}
 
@@ -716,28 +706,41 @@ PHP_METHOD(amqp_connection_class, setHost)
 }
 /* }}} */
 
-/* {{{ proto amqp::setPort([string port])
+/* {{{ proto amqp::setPort(mixed port)
 set the port */
 PHP_METHOD(amqp_connection_class, setPort)
 {
 	zval *id;
 	amqp_connection_object *ctx;
-	char *port;
-	int port_len;
+	zval *zvalPort;
+	int port;
 
-	/* @TODO: accept any scalar and convert to double */
 	/* Get the port from the method params */
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|sl", &id,
-	amqp_connection_class_entry, &port, &port_len) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oz", &id, amqp_connection_class_entry, &zvalPort) == FAILURE) {
 		RETURN_FALSE;
 	}
 	
-	/* Validate port length */
-	if (port_len > 32) {
-		zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'port' exceeds 32 characters limit.", 0 TSRMLS_CC);
-		return;
+	/* Parse out the port*/
+	switch (Z_TYPE_P(zvalPort)) {
+		case IS_DOUBLE:
+			port = (int)Z_DVAL_P(zvalPort);
+			break;
+		case IS_LONG:
+			port = (int)Z_LVAL_P(zvalPort);
+			break;
+		case IS_STRING:
+			convert_to_long(zvalPort);
+			port = (int)Z_LVAL_P(zvalPort);
+			break;
+		default:
+			port = 0;
 	}
-
+	
+	/* Check the port value */
+	if (port <= 0 || port > 65535) {
+		zend_throw_exception(amqp_connection_exception_class_entry, "Invalid port given. Value must be between 1 and 65535.", 0 TSRMLS_CC);
+	}
+	
 	/* Get the connection object out of the store */
 	ctx = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
 
@@ -793,8 +796,7 @@ PHP_METHOD(amqp_queue_class, __construct)
 	char *name = NULL;
 	int name_len = 0;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo|s",
-	&id, amqp_queue_class_entry, &cnnOb, &name, &name_len) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo|s", &id, amqp_queue_class_entry, &cnnOb, &name, &name_len) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -803,17 +805,22 @@ PHP_METHOD(amqp_queue_class, __construct)
 		return;
 	}
 
+
+	/* Store the connection object for later */
 	ctx = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
 	ctx->cnn = cnnOb;
 	ctx_cnn = (amqp_connection_object *) zend_object_store_get_object(ctx->cnn TSRMLS_CC);
-	
+
 
 	/* Check that the given connection has a channel, before trying to pull the connection off the stack */
 	if (ctx_cnn->is_connected != '\1') {
 		zend_throw_exception(amqp_queue_exception_class_entry, "Could not create queue. No connection available.", 0 TSRMLS_CC);
 		return;
 	}
-		
+	
+	/* Increment the ref count */
+	Z_ADDREF_P(cnnOb);
+
 	if (name_len) {
 		AMQP_SET_NAME(ctx, name);
 	}
@@ -1272,7 +1279,7 @@ PHP_METHOD(amqp_queue_class, consume)
 	/* verify there are no errors before grabbing the messages */
 	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(cnn->conn);	
 	if (res.reply_type != AMQP_RESPONSE_NORMAL) {
-		cnn->is_channel_connected=0;
+		cnn->is_channel_connected = 0;
 		char str[256];
 		char ** pstr = (char **) &str;
 		amqp_error(res, pstr);
@@ -1883,7 +1890,6 @@ PHP_METHOD(amqp_exchange_class, __construct)
 	ctx = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
 	ctx->cnn = cnnOb;
 	ctx_cnn = (amqp_connection_object *) zend_object_store_get_object(ctx->cnn TSRMLS_CC);
-	
 
 	/* Check that the given connection has a channel, before trying to pull the connection off the stack */
 	if (ctx_cnn->is_connected != '\1') {
@@ -1895,6 +1901,9 @@ PHP_METHOD(amqp_exchange_class, __construct)
 		zend_throw_exception(amqp_exchange_exception_class_entry, "The given AMQPConnection object is null.", 0 TSRMLS_CC);
 		return;
 	}
+
+	/* Increment the ref count */
+	Z_ADDREF_P(cnnOb);
 
 	if (name_len) {
 		AMQP_SET_NAME(ctx, name);
@@ -2371,7 +2380,11 @@ static zend_object_value amqp_ctor(zend_class_entry *ce TSRMLS_DC)
 static void amqp_queue_dtor(void *object TSRMLS_DC)
 {
 	amqp_queue_object *ob = (amqp_queue_object*)object;
-
+	
+	/* Destroy the connection object */
+	zval_ptr_dtor(&ob->cnn);
+	
+	/* Destroy this object */
 	efree(object);
 }
 
@@ -2395,6 +2408,9 @@ static zend_object_value amqp_queue_ctor(zend_class_entry *ce TSRMLS_DC)
 static void amqp_exchange_dtor(void *object TSRMLS_DC)
 {
 	amqp_exchange_object *ob = (amqp_exchange_object*)object;
+
+	/* Destroy the connection object */
+	zval_ptr_dtor(&ob->cnn);
 
 	efree(object);
 }

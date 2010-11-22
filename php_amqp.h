@@ -90,6 +90,15 @@ PHP_METHOD(amqp_exchange_class, delete);
 PHP_METHOD(amqp_exchange_class, bind);
 PHP_METHOD(amqp_exchange_class, publish);
 
+/* True global resources - no need for thread safety here */
+zend_class_entry *amqp_connection_class_entry;
+zend_class_entry *amqp_queue_class_entry;
+zend_class_entry *amqp_exchange_class_entry;
+zend_class_entry *amqp_exception_class_entry,
+				 *amqp_connection_exception_class_entry,
+				 *amqp_exchange_exception_class_entry,
+				 *amqp_queue_exception_class_entry;
+
 #ifdef ZTS
 #define AMQP_G(v) TSRMG(amqp_globals_id, zend_amqp_globals *, v)
 #else
