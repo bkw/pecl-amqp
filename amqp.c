@@ -338,22 +338,22 @@ static void	 amqp_error(amqp_rpc_reply_t x, char ** pstr)
  *	handles connecting to amqp
  *	called by connect() and reconnect()
  */
-static void php_amqp_connect(amqp_connection_object *ctx)
+static void php_amqp_connect(amqp_connection_object *amqp_connection)
 {
 	char str[256];
 	char ** pstr = (char **) &str;
 	void * old_handler;
 	
 	/* create the connection */
-	ctx->conn = amqp_new_connection();
+	amqp_connection->conn = amqp_new_connection();
 	
-	ctx->fd = amqp_open_socket(ctx->host, ctx->port);
+	amqp_connection->fd = amqp_open_socket(amqp_connection->host, amqp_connection->port);
 	
-	if (ctx->fd < 1) {
+	if (amqp_connection->fd < 1) {
 		/* Start ignoring SIGPIPE */
 		old_handler = signal(SIGPIPE, SIG_IGN);
 		
-		amqp_destroy_connection(ctx->conn);
+		amqp_destroy_connection(amqp_connection->conn);
 		
 		/* End ignoring of SIGPIPEs */
 		signal(SIGPIPE, old_handler);
@@ -361,11 +361,11 @@ static void php_amqp_connect(amqp_connection_object *ctx)
 		zend_throw_exception(amqp_connection_exception_class_entry, "Socket error: could not connect to host.", 0 TSRMLS_CC);
 		return;
 	}
-	ctx->is_connected = '\1';
+	amqp_connection->is_connected = '\1';
 	
-	amqp_set_sockfd(ctx->conn, ctx->fd);
+	amqp_set_sockfd(amqp_connection->conn, amqp_connection->fd);
 	
-	amqp_rpc_reply_t x = amqp_login(ctx->conn, ctx->vhost, 0, FRAME_MAX, AMQP_HEARTBEAT, AMQP_SASL_METHOD_PLAIN, ctx->login, ctx->password);
+	amqp_rpc_reply_t x = amqp_login(amqp_connection->conn, amqp_connection->vhost, 0, FRAME_MAX, AMQP_HEARTBEAT, AMQP_SASL_METHOD_PLAIN, amqp_connection->login, amqp_connection->password);
 
 	if (x.reply_type != AMQP_RESPONSE_NORMAL) {
 		amqp_error(x, pstr);
@@ -373,23 +373,23 @@ static void php_amqp_connect(amqp_connection_object *ctx)
 		return;
 	}
 	
-	amqp_channel_open(ctx->conn, AMQP_CHANNEL);
+	amqp_channel_open(amqp_connection->conn, AMQP_CHANNEL);
 	
-	x = amqp_get_rpc_reply(ctx->conn);
+	x = amqp_get_rpc_reply(amqp_connection->conn);
 	if (x.reply_type != AMQP_RESPONSE_NORMAL) {
 		amqp_error(x, pstr);
 		zend_throw_exception(amqp_connection_exception_class_entry, *pstr, 0 TSRMLS_CC);
 		return;
 	}
 	
-	ctx->is_channel_connected = '\1';
+	amqp_connection->is_channel_connected = '\1';
 }
 
 /* 	php_amqp_disconnect
 	handles disconnecting from amqp
 	called by disconnect(), reconnect(), and d_tor
  */
-static void php_amqp_disconnect(amqp_connection_object *ctx)
+static void php_amqp_disconnect(amqp_connection_object *amqp_connection)
 {
 	void * old_handler;
 	/*
@@ -400,17 +400,17 @@ static void php_amqp_disconnect(amqp_connection_object *ctx)
 	/* Start ignoring SIGPIPE */
 	old_handler = signal(SIGPIPE, SIG_IGN);
 	
-	if (ctx->is_channel_connected == '\1') {
-		amqp_channel_close(ctx->conn, AMQP_CHANNEL, AMQP_REPLY_SUCCESS);
+	if (amqp_connection->is_channel_connected == '\1') {
+		amqp_channel_close(amqp_connection->conn, AMQP_CHANNEL, AMQP_REPLY_SUCCESS);
 	}
-	ctx->is_channel_connected = '\0';
+	amqp_connection->is_channel_connected = '\0';
 
-	if (ctx->conn && ctx->is_connected == '\1') {
-		amqp_destroy_connection(ctx->conn);
+	if (amqp_connection->conn && amqp_connection->is_connected == '\1') {
+		amqp_destroy_connection(amqp_connection->conn);
 	}
-	ctx->is_connected = '\0';
-	if (ctx->fd) {
-		close(ctx->fd);
+	amqp_connection->is_connected = '\0';
+	if (amqp_connection->fd) {
+		close(amqp_connection->fd);
 	}
 
 	/* End ignoring of SIGPIPEs */
@@ -425,7 +425,7 @@ static void php_amqp_disconnect(amqp_connection_object *ctx)
 PHP_METHOD(amqp_connection_class, __construct)
 {
 	zval *id;
-	amqp_connection_object *ctx;
+	amqp_connection_object *amqp_connection;
 
 	zval* iniArr = NULL;
 	zval** zdata;
@@ -436,7 +436,7 @@ PHP_METHOD(amqp_connection_class, __construct)
 		return;
 	}
 
-	ctx = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
+	amqp_connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
 
 	/* Pull the login out of the $params array */
 	zdata = NULL;
@@ -446,13 +446,13 @@ PHP_METHOD(amqp_connection_class, __construct)
 	/* Validate the given login */
 	if (zdata && Z_STRLEN_PP(zdata) > 0) {
 		if (Z_STRLEN_PP(zdata) < 32) {
-			ctx->login = estrndup(Z_STRVAL_PP(zdata), Z_STRLEN_PP(zdata));
+			amqp_connection->login = estrndup(Z_STRVAL_PP(zdata), Z_STRLEN_PP(zdata));
 		} else {
 			zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'login' exceeds 32 character limit.", 0 TSRMLS_CC);
 			return;
 		}
 	} else {
-		ctx->login = estrndup(INI_STR("amqp.login"), strlen(INI_STR("amqp.login")) > 32 ? 32 : strlen(INI_STR("amqp.login")));
+		amqp_connection->login = estrndup(INI_STR("amqp.login"), strlen(INI_STR("amqp.login")) > 32 ? 32 : strlen(INI_STR("amqp.login")));
 	}
 	/* @TODO: write a macro to reduce code duplication */
 	
@@ -464,13 +464,13 @@ PHP_METHOD(amqp_connection_class, __construct)
 	/* Validate the given password */
 	if (zdata && Z_STRLEN_PP(zdata) > 0) {
 		if (Z_STRLEN_PP(zdata) < 32) {
-			ctx->password = estrndup(Z_STRVAL_PP(zdata), Z_STRLEN_PP(zdata));
+			amqp_connection->password = estrndup(Z_STRVAL_PP(zdata), Z_STRLEN_PP(zdata));
 		} else {
 			zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'password' exceeds 32 character limit.", 0 TSRMLS_CC);
 			return;
 		}
 	} else {
-		ctx->password = estrndup(INI_STR("amqp.password"), strlen(INI_STR("amqp.password")) > 32 ? 32 : strlen(INI_STR("amqp.password")));
+		amqp_connection->password = estrndup(INI_STR("amqp.password"), strlen(INI_STR("amqp.password")) > 32 ? 32 : strlen(INI_STR("amqp.password")));
 	}
 	
 	/* Pull the host out of the $params array */
@@ -481,13 +481,13 @@ PHP_METHOD(amqp_connection_class, __construct)
 	/* Validate the given host */
 	if (zdata && Z_STRLEN_PP(zdata) > 0) {
 		if (Z_STRLEN_PP(zdata) < 32) {
-			ctx->host = estrndup(Z_STRVAL_PP(zdata), Z_STRLEN_PP(zdata));
+			amqp_connection->host = estrndup(Z_STRVAL_PP(zdata), Z_STRLEN_PP(zdata));
 		} else {
 			zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'host' exceeds 32 character limit.", 0 TSRMLS_CC);
 			return;
 		}
 	} else {
-		ctx->host = estrndup(INI_STR("amqp.host"), strlen(INI_STR("amqp.host")) > 32 ? 32 : strlen(INI_STR("amqp.host")));
+		amqp_connection->host = estrndup(INI_STR("amqp.host"), strlen(INI_STR("amqp.host")) > 32 ? 32 : strlen(INI_STR("amqp.host")));
 	}
 	
 	/* Pull the vhost out of the $params array */
@@ -498,20 +498,20 @@ PHP_METHOD(amqp_connection_class, __construct)
 	/* Validate the given vhost */
 	if (zdata && Z_STRLEN_PP(zdata) > 0) {
 		if (Z_STRLEN_PP(zdata) < 32) {
-			ctx->vhost = estrndup(Z_STRVAL_PP(zdata), Z_STRLEN_PP(zdata));
+			amqp_connection->vhost = estrndup(Z_STRVAL_PP(zdata), Z_STRLEN_PP(zdata));
 		} else {
 			zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'vhost' exceeds 32 character limit.", 0 TSRMLS_CC);
 			return;
 		}
 	} else {
-		ctx->vhost = estrndup(INI_STR("amqp.vhost"), strlen(INI_STR("amqp.vhost")) > 32 ? 32 : strlen(INI_STR("amqp.vhost")));
+		amqp_connection->vhost = estrndup(INI_STR("amqp.vhost"), strlen(INI_STR("amqp.vhost")) > 32 ? 32 : strlen(INI_STR("amqp.vhost")));
 	}
 
-	ctx->port = INI_INT("amqp.port");
+	amqp_connection->port = INI_INT("amqp.port");
 
 	if (iniArr && SUCCESS == zend_hash_find(HASH_OF (iniArr), "port", sizeof("port"), (void*)&zdata)) {
 		convert_to_long(*zdata);
-		ctx->port = (size_t)Z_LVAL_PP(zdata);
+		amqp_connection->port = (size_t)Z_LVAL_PP(zdata);
 	}
 }
 /* }}} */
@@ -522,7 +522,7 @@ check amqp connection */
 PHP_METHOD(amqp_connection_class, isConnected)
 {
 	zval *id;
-	amqp_connection_object *ctx;
+	amqp_connection_object *amqp_connection;
 
 	/* Try to pull amqp object out of method params */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_connection_class_entry) == FAILURE) {
@@ -530,10 +530,10 @@ PHP_METHOD(amqp_connection_class, isConnected)
 	}
 
 	/* Get the connection object out of the store */
-	ctx = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
+	amqp_connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
 
 	/* If the channel_connect is 1, we have a connection */
-	if (ctx->is_channel_connected == '\1') {
+	if (amqp_connection->is_channel_connected == '\1') {
 		RETURN_TRUE;
 	}
 
@@ -548,7 +548,7 @@ create amqp connection */
 PHP_METHOD(amqp_connection_class, connect)
 {
 	zval *id;
-	amqp_connection_object *ctx;
+	amqp_connection_object *amqp_connection;
 
 	/* Try to pull amqp object out of method params */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_connection_class_entry) == FAILURE) {
@@ -556,9 +556,9 @@ PHP_METHOD(amqp_connection_class, connect)
 	}
 	
 	/* Get the connection object out of the store */
-	ctx = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
+	amqp_connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
 	
-	php_amqp_connect(ctx);
+	php_amqp_connect(amqp_connection);
 	/* @TODO: return connection success or failure */
 	RETURN_TRUE;
 }
@@ -570,7 +570,7 @@ destroy amqp connection */
 PHP_METHOD(amqp_connection_class, disconnect)
 {
 	zval *id;
-	amqp_connection_object *ctx;
+	amqp_connection_object *amqp_connection;
 
 	/* Try to pull amqp object out of method params */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_connection_class_entry) == FAILURE) {
@@ -578,9 +578,9 @@ PHP_METHOD(amqp_connection_class, disconnect)
 	}
 	
 	/* Get the connection object out of the store */
-	ctx = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
+	amqp_connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
 	
-	php_amqp_disconnect(ctx);
+	php_amqp_disconnect(amqp_connection);
 	
 	RETURN_TRUE;
 }
@@ -592,7 +592,7 @@ recreate amqp connection */
 PHP_METHOD(amqp_connection_class, reconnect)
 {
 	zval *id;
-	amqp_connection_object *ctx;
+	amqp_connection_object *amqp_connection;
 
 	/* Try to pull amqp object out of method params */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_connection_class_entry) == FAILURE) {
@@ -600,12 +600,12 @@ PHP_METHOD(amqp_connection_class, reconnect)
 	}
 	
 	/* Get the connection object out of the store */
-	ctx = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
+	amqp_connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
 	
-	if (ctx->is_connected) {
-		php_amqp_disconnect(ctx);
+	if (amqp_connection->is_connected) {
+		php_amqp_disconnect(amqp_connection);
 	}
-	php_amqp_connect(ctx);
+	php_amqp_connect(amqp_connection);
 	/* @TODO: return the success or failure of connect */
 	RETURN_TRUE;
 }
@@ -617,11 +617,10 @@ set the login */
 PHP_METHOD(amqp_connection_class, setLogin)
 {
 	zval *id;
-	amqp_connection_object *ctx;
+	amqp_connection_object *amqp_connection;
 	char *login;
 	int login_len;
 	
-	/* @TODO: check to see if the 'l' is required below */
 	/* @TODO: use macro when one is created for constructor */
 	/* Get the login from the method params */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id,
@@ -636,10 +635,10 @@ PHP_METHOD(amqp_connection_class, setLogin)
 	}
 
 	/* Get the connection object out of the store */
-	ctx = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
+	amqp_connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
 
 	/* Copy the login to the amqp object */
-	strcpy(ctx->login, login);
+	amqp_connection->login = estrndup(login, login_len);
 	
 	RETURN_TRUE;
 }
@@ -650,7 +649,7 @@ set the password */
 PHP_METHOD(amqp_connection_class, setPassword)
 {
 	zval *id;
-	amqp_connection_object *ctx;
+	amqp_connection_object *amqp_connection;
 	char *password;
 	int password_len;
 
@@ -667,10 +666,10 @@ PHP_METHOD(amqp_connection_class, setPassword)
 	}
 
 	/* Get the connection object out of the store */
-	ctx = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
+	amqp_connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
 
 	/* Copy the password to the amqp object */
-	strcpy(ctx->password, password);
+	amqp_connection->password = estrndup(password, password_len);
 	
 	RETURN_TRUE;
 }
@@ -681,7 +680,7 @@ set the host */
 PHP_METHOD(amqp_connection_class, setHost)
 {
 	zval *id;
-	amqp_connection_object *ctx;
+	amqp_connection_object *amqp_connection;
 	char *host;
 	int host_len;
 
@@ -697,10 +696,10 @@ PHP_METHOD(amqp_connection_class, setHost)
 	}
 
 	/* Get the connection object out of the store */
-	ctx = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
+	amqp_connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
 
 	/* Copy the host to the amqp object */
-	strcpy(ctx->host, host);
+	amqp_connection->host = estrndup(host, host_len);
 	
 	RETURN_TRUE;
 }
@@ -711,7 +710,7 @@ set the port */
 PHP_METHOD(amqp_connection_class, setPort)
 {
 	zval *id;
-	amqp_connection_object *ctx;
+	amqp_connection_object *amqp_connection;
 	zval *zvalPort;
 	int port;
 
@@ -742,10 +741,10 @@ PHP_METHOD(amqp_connection_class, setPort)
 	}
 	
 	/* Get the connection object out of the store */
-	ctx = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
+	amqp_connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
 
 	/* Copy the port to the amqp object */
-	ctx->port = port;
+	amqp_connection->port = port;
 	
 	RETURN_TRUE;
 }
@@ -756,7 +755,7 @@ set the vhost */
 PHP_METHOD(amqp_connection_class, setVhost)
 {
 	zval *id;
-	amqp_connection_object *ctx;
+	amqp_connection_object *amqp_connection;
 	char *vhost;
 	int vhost_len;
 
@@ -773,10 +772,10 @@ PHP_METHOD(amqp_connection_class, setVhost)
 	}
 
 	/* Get the connection object out of the store */
-	ctx = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
+	amqp_connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
 
 	/* Copy the vhost to the amqp object */
-	strcpy(ctx->vhost, vhost);
+	amqp_connection->vhost = estrndup(vhost, vhost_len);
 	
 	RETURN_TRUE;
 }
