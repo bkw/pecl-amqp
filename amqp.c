@@ -1274,7 +1274,7 @@ PHP_METHOD(amqp_queue_class, consume)
 
 	amqp_connection_object *cnn = (amqp_connection_object *)zend_object_store_get_object(ctx->cnn TSRMLS_CC);
 
-	amqp_basic_consume(cnn->conn, AMQP_CHANNEL, amqp_cstring_bytes(ctx->name), amqp_cstring_bytes(ctx->consumer_tag), 0, 0, 0, AMQP_EMPTY_TABLE);
+	amqp_basic_consume(cnn->conn, AMQP_CHANNEL, amqp_cstring_bytes(ctx->name), AMQP_EMPTY_BYTES, 0, 0, 0, AMQP_EMPTY_TABLE);
 	
 	/* verify there are no errors before grabbing the messages */
 	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(cnn->conn);	
@@ -1432,7 +1432,7 @@ PHP_METHOD(amqp_queue_class, consume)
 		}
 
 		if (p->_flags & AMQP_BASIC_MESSAGE_ID_FLAG) {
-			add_assoc_stringl_ex(message, "mesage_id", sizeof("message_id"),
+			add_assoc_stringl_ex(message, "message_id", sizeof("message_id"),
 				p->message_id.bytes,
 				p->message_id.len, 1);
 		}
