@@ -750,7 +750,7 @@ PHP_METHOD(amqp_connection_class, setPort)
 }
 /* }}} */
 
-/* {{{ proto amqp::setVhost([string vhost])
+/* {{{ proto amqp::setVhost(string vhost)
 set the vhost */
 PHP_METHOD(amqp_connection_class, setVhost)
 {
@@ -760,7 +760,7 @@ PHP_METHOD(amqp_connection_class, setVhost)
 	int vhost_len;
 
 	/* Get the vhost from the method params */
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|sl", &id,
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id,
 	amqp_connection_class_entry, &vhost, &vhost_len) == FAILURE) {
 		RETURN_FALSE;
 	}
@@ -803,7 +803,6 @@ PHP_METHOD(amqp_queue_class, __construct)
 		zend_throw_exception(amqp_queue_exception_class_entry, "The first parameter must be and instance of AMQPConnection.", 0 TSRMLS_CC);
 		return;
 	}
-
 
 	/* Store the connection object for later */
 	ctx = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -941,7 +940,7 @@ PHP_METHOD(amqp_queue_class, delete)
 	amqp_queue_delete_ok_t *r;
 	amqp_queue_delete_t s;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|sl", &id,
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id,
 	amqp_queue_class_entry, &name, &name_len, &parms) == FAILURE) {
 		RETURN_FALSE;
 	}
@@ -961,23 +960,24 @@ PHP_METHOD(amqp_queue_class, delete)
 
 	if (name_len) {
 		s.ticket		= 0;
-		s.queue.len	 = name_len;
+		s.queue.len		= name_len;
 		s.queue.bytes	= name;
-		s.if_unused	 = (AMQP_IFUNUSED & parms)? 1:0;
-		s.if_empty	  = (AMQP_IFEMPTY & parms)? 1:0;
+		s.if_unused		= (AMQP_IFUNUSED & parms)? 1:0;
+		s.if_empty		= (AMQP_IFEMPTY & parms)? 1:0;
 		s.nowait		= 0;
 	} else {
 		s.ticket		= 0;
-		s.queue.len	 = ctx->name_len;
+		s.queue.len		= ctx->name_len;
 		s.queue.bytes	= ctx->name;
-		s.if_unused	 = (AMQP_IFUNUSED & parms) ? 1 : 0;
-		s.if_empty	  = (AMQP_IFEMPTY & parms) ? 1 : 0;
+		s.if_unused		= (AMQP_IFUNUSED & parms) ? 1 : 0;
+		s.if_empty		= (AMQP_IFEMPTY & parms) ? 1 : 0;
 		s.nowait		= 0;
 	}
 
 	amqp_method_number_t method_ok = AMQP_QUEUE_DELETE_OK_METHOD;
 
-	result = amqp_simple_rpc(cnn->conn,
+	result = amqp_simple_rpc(
+		cnn->conn,
 		AMQP_CHANNEL,
 		AMQP_QUEUE_DELETE_METHOD,
 		&method_ok,
@@ -1016,7 +1016,7 @@ PHP_METHOD(amqp_queue_class, purge)
 	amqp_queue_purge_ok_t *r;
 	amqp_queue_purge_t s;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|s", &id,
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id,
 	amqp_queue_class_entry, &name, &name_len) == FAILURE) {
 		RETURN_FALSE;
 	}
@@ -1031,19 +1031,20 @@ PHP_METHOD(amqp_queue_class, purge)
 	amqp_connection_object *cnn = (amqp_connection_object *) zend_object_store_get_object(ctx->cnn TSRMLS_CC);
 
 	if (name_len) {
-		s.ticket = 0;
-		s.queue.len = name_len;
-		s.queue.bytes = name;
-		s.nowait = 0;
+		s.ticket		= 0;
+		s.queue.len		= name_len;
+		s.queue.bytes	= name;
+		s.nowait		= 0;
 	} else {
-		s.ticket = 0;
-		s.queue.len = ctx->name_len;
-		s.queue.bytes = ctx->name;
-		s.nowait = 0;
+		s.ticket		= 0;
+		s.queue.len		= ctx->name_len;
+		s.queue.bytes	= ctx->name;
+		s.nowait		= 0;
 	}
 
 	amqp_method_number_t method_ok = AMQP_QUEUE_PURGE_OK_METHOD;
-	result = amqp_simple_rpc(cnn->conn,
+	result = amqp_simple_rpc(
+		cnn->conn,
 		AMQP_CHANNEL,
 		AMQP_QUEUE_PURGE_METHOD,
 		&method_ok,
@@ -1104,7 +1105,7 @@ PHP_METHOD(amqp_queue_class, bind)
 	amqp_connection_object *cnn = (amqp_connection_object *) zend_object_store_get_object(ctx->cnn TSRMLS_CC);
 
 	amqp_queue_bind_t s;
-	s.ticket = 0;
+	s.ticket 				= 0;
 	s.queue.len				= ctx->name_len;
 	s.queue.bytes			= ctx->name;
 	s.exchange.len			= exchange_name_len;
@@ -1117,7 +1118,8 @@ PHP_METHOD(amqp_queue_class, bind)
 
 	amqp_method_number_t bind_ok = AMQP_QUEUE_BIND_OK_METHOD;
 
-	res = (amqp_rpc_reply_t) amqp_simple_rpc(cnn->conn,
+	res = (amqp_rpc_reply_t) amqp_simple_rpc(
+		cnn->conn,
 		AMQP_CHANNEL,
 		AMQP_QUEUE_BIND_METHOD,
 		&bind_ok,
@@ -1556,7 +1558,7 @@ PHP_METHOD(amqp_queue_class, get)
 		amqp_maybe_release_buffers(cnn->conn);
 		result = amqp_simple_wait_frame(cnn->conn, &frame);
 
-		if (result <= 0) {
+		if (result < 0) {
 			RETURN_FALSE;
 		}
 
@@ -1864,7 +1866,7 @@ PHP_METHOD(amqp_queue_class, ack)
 
 /* ------------------  class Exchange ----------- */
 
-/* {{{ proto AMQPEexchange( AMQPConnection cnn, [string name]);	 //////, string type=direct, [ bit params ]);
+/* {{{ proto AMQPEexchange( AMQPConnection cnn, [string name]);
 declare Exchange   */
 PHP_METHOD(amqp_exchange_class, __construct)
 {
@@ -1892,7 +1894,7 @@ PHP_METHOD(amqp_exchange_class, __construct)
 
 	/* Check that the given connection has a channel, before trying to pull the connection off the stack */
 	if (ctx_cnn->is_connected != '\1') {
-		zend_throw_exception(amqp_queue_exception_class_entry, "Could not create exchange. No connection available.", 0 TSRMLS_CC);
+		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not create exchange. No connection available.", 0 TSRMLS_CC);
 		return;
 	}
 
@@ -1930,6 +1932,7 @@ PHP_METHOD(amqp_exchange_class, declare)
 	int name_len = 0;
 	char *type;
 	int type_len = 0;
+	char *verified_type;
 	long parms = 0;
 
 	amqp_rpc_reply_t res;
@@ -1954,7 +1957,7 @@ PHP_METHOD(amqp_exchange_class, declare)
 
 	ctx_cnn = (amqp_connection_object *) zend_object_store_get_object(ctx->cnn TSRMLS_CC);
 
-	if(!ctx_cnn) {
+	if (!ctx_cnn) {
 		zend_throw_exception(amqp_exchange_exception_class_entry, "The given AMQPConnection object is null.", 0 TSRMLS_CC);
 		return;
 	}
@@ -1978,10 +1981,22 @@ PHP_METHOD(amqp_exchange_class, declare)
 	AMQP_DURABLE_D
 	AMQP_AUTODELETE_D
 
-	res = AMQP_SIMPLE_RPC(ctx_cnn->conn,
-		AMQP_CHANNEL,  EXCHANGE, DECLARE, DECLARE_OK,
+	res = AMQP_SIMPLE_RPC(
+		ctx_cnn->conn,
+		AMQP_CHANNEL,
+		EXCHANGE,
+		DECLARE,
+		DECLARE_OK,
 		amqp_exchange_declare_t,
-		0, amqp_name, amqp_type, passive, durable, auto_delete, 0, 0, arguments
+		0,
+		amqp_name,
+		amqp_type,
+		passive,
+		durable,
+		auto_delete,
+		0,
+		0,
+		arguments
 	);
 
 
@@ -2025,7 +2040,6 @@ PHP_METHOD(amqp_exchange_class, delete)
 
 	if (name_len) {
 		AMQP_SET_NAME(ctx, name);
-
 		s.ticket = 0;
 		s.exchange.len = name_len;
 		s.exchange.bytes = name;
@@ -2070,7 +2084,7 @@ PHP_METHOD(amqp_exchange_class, delete)
 }
 /* }}} */
 
-/* {{{ proto AMQPEexchange::publish(string msg, [string key]);
+/* {{{ proto AMQPEexchange::publish(string msg, string key,);
 publish into Exchange
 */
 PHP_METHOD(amqp_exchange_class, publish)

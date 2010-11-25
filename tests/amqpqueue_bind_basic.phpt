@@ -6,8 +6,11 @@ AMQPQueue
 <?php
 $cnn = new AMQPConnection();
 $cnn->connect();
+$ex = new AMQPExchange($cnn);
+$ex->declare('exchange1', AMQP_EX_TYPE_DIRECT);
 $queue = new AMQPQueue($cnn);
-echo $queue->bind('exchange', 'routing.key') ? 'true' : 'false';
+$queue->declare('queue1');
+var_dump($queue->bind('exchange1', 'routing.key'));
 ?>
 --EXPECT--
 true

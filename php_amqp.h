@@ -57,7 +57,6 @@ extern zend_module_entry amqp_module_entry;
 #define AMQP_EX_TYPE_TOPIC      "topic"
 #define AMQP_EX_TYPE_HEADER     "header"
 
-
 PHP_MINIT_FUNCTION(amqp);
 PHP_MSHUTDOWN_FUNCTION(amqp);
 PHP_MINFO_FUNCTION(amqp);
