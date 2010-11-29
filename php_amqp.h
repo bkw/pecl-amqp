@@ -60,17 +60,6 @@ extern zend_module_entry amqp_module_entry;
 PHP_MINIT_FUNCTION(amqp);
 PHP_MSHUTDOWN_FUNCTION(amqp);
 PHP_MINFO_FUNCTION(amqp);
-	
-PHP_METHOD(amqp_connection_class, __construct);
-PHP_METHOD(amqp_connection_class, isConnected);
-PHP_METHOD(amqp_connection_class, connect);
-PHP_METHOD(amqp_connection_class, disconnect);
-PHP_METHOD(amqp_connection_class, reconnect);
-PHP_METHOD(amqp_connection_class, setLogin);
-PHP_METHOD(amqp_connection_class, setPassword);
-PHP_METHOD(amqp_connection_class, setHost);
-PHP_METHOD(amqp_connection_class, setPort);
-PHP_METHOD(amqp_connection_class, setVhost);
 
 PHP_METHOD(amqp_queue_class, __construct);
 PHP_METHOD(amqp_queue_class, declare);
@@ -97,6 +86,68 @@ zend_class_entry *amqp_exception_class_entry,
 				 *amqp_connection_exception_class_entry,
 				 *amqp_exchange_exception_class_entry,
 				 *amqp_queue_exception_class_entry;
+
+
+#define FRAME_MAX				131072	/* max length (size) of frame */
+#define HEADER_FOOTER_SIZE		8	   /*  7 bytes up front, then payload, then 1 byte footer */
+#define PORT					5672	/* default AMQP port */
+#define PORT_STR				"5672"
+#define AMQP_CHANNEL			1	   /* default channel number */
+#define AMQP_HEARTBEAT			0	   /* heartbeat */
+
+#define AMQP_NULLARGS			amqp_table_t arguments = {0, NULL};
+#define AMQP_PASSIVE_D			short passive = (AMQP_PASSIVE & parms) ? 1 : 0;
+#define AMQP_DURABLE_D			short durable = (AMQP_DURABLE & parms) ? 1 : 0;
+#define AMQP_AUTODELETE_D		short auto_delete = (AMQP_AUTODELETE & parms) ? 1 : 0;
+#define AMQP_EXCLUSIVE_D		short exclusive = (AMQP_EXCLUSIVE & parms) ? 1 : 0;
+
+#define AMQP_SET_NAME(ctx, str) (ctx)->name_len = strlen(str) >= sizeof((ctx)->name) ? sizeof((ctx)->name) - 1 : strlen(str); \
+             strncpy((ctx)->name, name, (ctx)->name_len); \
+                 (ctx)->name[(ctx)->name_len] = '\0';
+
+/* If you declare any globals in php_amqp.h uncomment this:
+ ZEND_DECLARE_MODULE_GLOBALS(amqp)
+*/
+
+typedef struct _amqp_connection_object {
+    zend_object zo;
+    char is_connected;
+    char is_channel_connected;
+    char *login;
+    int char_len;
+    char *password;
+    int password_len;
+    char *host;
+    int host_len;
+    char *vhost;
+    int vhost_len;
+    int port;
+    int fd;
+    amqp_connection_state_t conn;
+} amqp_connection_object;
+
+typedef struct _amqp_queue_object {
+    zend_object zo;
+    zval *cnn;
+    char is_connected;
+    char name[64];
+    int name_len;
+    char consumer_tag[64];
+    int consumer_tag_len;
+    int passive; /* @TODO: consider making these bit fields */
+    int durable;
+    int exclusive;
+    int auto_delete; /* end @TODO */
+} amqp_queue_object;
+
+
+typedef struct _amqp_exchange_object {
+    zend_object zo;
+    zval *cnn;
+    char is_connected;
+    char name[64];
+    int name_len;
+} amqp_exchange_object;
 
 #ifdef ZTS
 #define AMQP_G(v) TSRMG(amqp_globals_id, zend_amqp_globals *, v)

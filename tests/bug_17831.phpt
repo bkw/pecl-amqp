@@ -9,8 +9,9 @@ $c->connect();
 $ex = new AMQPExchange($c, "foo");
 try {
     $ex->publish("data", "bar");
+    echo "Success?\n";
 } catch (Exception $e) {
-    echo $e->getMessage();
+    var_dump($e->getMessage());
 }
 ?>
 --EXPECT--
