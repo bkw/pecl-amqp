@@ -15,11 +15,11 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <email>pdezwart@php.net</email>
   <active>yes</active>
  </lead>
- <date>2010-08-19</date>
- <time>13:32:53</time>
+ <date>2010-11-30</date>
+ <time>17:50:50</time>
  <version>
-  <release>0.1.1</release>
-  <api>0.1.1</api>
+  <release>0.2.0</release>
+  <api>0.2.0</api>
  </version>
  <stability>
   <release>beta</release>
@@ -32,9 +32,15 @@ Updating extension to work with new rabbitmq-c library
  <contents>
   <dir name="/">
    <file name="amqp.c" role="src" />
+   <file name="amqp_connection.c" role="src" />
+   <file name="amqp_exchange.c" role="src" />
+   <file name="amqp_queue.c" role="src" />
    <file name="config.m4" role="src" />
    <file name="CREDITS" role="doc" />
    <file name="php_amqp.h" role="src" />
+   <file name="amqp_connection.h" role="src" />
+   <file name="amqp_exchange.h" role="src" />
+   <file name="amqp_queue.h" role="src" />
   </dir> <!-- / -->
  </contents>
  <dependencies>
