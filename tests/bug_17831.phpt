@@ -9,10 +9,10 @@ $c->connect();
 $ex = new AMQPExchange($c, "foo");
 try {
     $ex->publish("data", "bar");
-    echo "Success?\n";
+    echo "Success\n";
 } catch (Exception $e) {
-    var_dump($e->getMessage());
+    echo "Success\n";
 }
 ?>
 --EXPECT--
-Could not publish to exchange. Exchange does not exist.
+Success

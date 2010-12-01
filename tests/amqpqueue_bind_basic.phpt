@@ -7,10 +7,12 @@ AMQPQueue
 $cnn = new AMQPConnection();
 $cnn->connect();
 $ex = new AMQPExchange($cnn);
-$ex->declare('exchange1', AMQP_EX_TYPE_DIRECT);
+$exName = 'exchange-' . time();
+$qName = 'queue-' . time();
+$ex->declare($exName, AMQP_EX_TYPE_DIRECT);
 $queue = new AMQPQueue($cnn);
-$queue->declare('queue1');
-var_dump($queue->bind('exchange1', 'routing.key'));
+$queue->declare($qName);
+var_dump($queue->bind($exName, 'routing.key'));
 ?>
 --EXPECT--
-true
+bool(true)

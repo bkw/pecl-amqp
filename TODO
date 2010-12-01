@@ -1,6 +1,5 @@
 . Fix php_st_error_handling deprecation
 . Fix parameter parsing (see PECL email)
-. Rewrite test cases using phpt
 . Add non-busy wait consumption
 
 == DONE ==
