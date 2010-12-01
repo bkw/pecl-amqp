@@ -25,23 +25,14 @@
 
 /* $Id$ */
 
-
-void amqp_dtor(void *object TSRMLS_DC);
-zend_object_value amqp_ctor(zend_class_entry *ce TSRMLS_DC);
-
-void php_amqp_connect(amqp_connection_object *amqp_connection);
-void php_amqp_disconnect(amqp_connection_object *amqp_connection);
-
-PHP_METHOD(amqp_connection_class, __construct);
-PHP_METHOD(amqp_connection_class, isConnected);
-PHP_METHOD(amqp_connection_class, connect);
-PHP_METHOD(amqp_connection_class, disconnect);
-PHP_METHOD(amqp_connection_class, reconnect);
-PHP_METHOD(amqp_connection_class, setLogin);
-PHP_METHOD(amqp_connection_class, setPassword);
-PHP_METHOD(amqp_connection_class, setHost);
-PHP_METHOD(amqp_connection_class, setPort);
-PHP_METHOD(amqp_connection_class, setVhost);
+void amqp_exchange_dtor(void *object TSRMLS_DC);
+zend_object_value amqp_exchange_ctor(zend_class_entry *ce TSRMLS_DC);
+  
+PHP_METHOD(amqp_exchange_class, __construct);
+PHP_METHOD(amqp_exchange_class, declare);
+PHP_METHOD(amqp_exchange_class, delete);
+PHP_METHOD(amqp_exchange_class, bind);
+PHP_METHOD(amqp_exchange_class, publish);
 
 
 /*

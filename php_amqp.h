@@ -1,21 +1,21 @@
 /*
   +----------------------------------------------------------------------+
-  | PHP Version 5                                                        |
+  | PHP Version 5														|
   +----------------------------------------------------------------------+
-  | Copyright (c) 1997-2007 The PHP Group                                |
+  | Copyright (c) 1997-2007 The PHP Group								|
   +----------------------------------------------------------------------+
-  | This source file is subject to version 3.01 of the PHP license,      |
-  | that is bundled with this package in the file LICENSE, and is        |
-  | available through the world-wide-web at the following url:           |
-  | http://www.php.net/license/3_01.txt                                  |
+  | This source file is subject to version 3.01 of the PHP license,	  |
+  | that is bundled with this package in the file LICENSE, and is		|
+  | available through the world-wide-web at the following url:		   |
+  | http://www.php.net/license/3_01.txt								  |
   | If you did not receive a copy of the PHP license and are unable to   |
-  | obtain it through the world-wide-web, please send a note to          |
-  | license@php.net so we can mail you a copy immediately.               |
+  | obtain it through the world-wide-web, please send a note to		  |
+  | license@php.net so we can mail you a copy immediately.			   |
   +----------------------------------------------------------------------+
   | Author: Alexandre Kalendarev akalend@mail.ru Copyright (c) 2009-2010 |
   | Contributor: 														 |
-  | - Pieter de Zwart pdezwart@php.net									 |					|													|
-  | - Brad Rodriguez brodrigu@gmail.com                        			 |
+  | - Pieter de Zwart pdezwart@php.net									 |
+  | - Brad Rodriguez brodrigu@gmail.com									 |
   +----------------------------------------------------------------------+
 */
 
@@ -37,12 +37,12 @@ extern zend_module_entry amqp_module_entry;
 #include "TSRM.h"
 #endif
 
-#define AMQP_NOPARM		    1
+#define AMQP_NOPARM			1
 
 #define AMQP_DURABLE		2
 #define AMQP_PASSIVE		4
 #define AMQP_EXCLUSIVE		8
-#define AMQP_AUTODELETE	    16
+#define AMQP_AUTODELETE		16
 #define AMQP_INTERNAL		32
 #define AMQP_NOLOCAL		64
 #define AMQP_NOACK			128
@@ -50,33 +50,18 @@ extern zend_module_entry amqp_module_entry;
 #define AMQP_IFUNUSED		528
 #define AMQP_MANDATORY		1024
 #define AMQP_IMMEDIATE		2048
-#define AMQP_MULTIPLE       4096
+#define AMQP_MULTIPLE	   4096
 
-#define AMQP_EX_TYPE_DIRECT     "direct"
-#define AMQP_EX_TYPE_FANOUT     "fanout"
-#define AMQP_EX_TYPE_TOPIC      "topic"
-#define AMQP_EX_TYPE_HEADER     "header"
+#define AMQP_EX_TYPE_DIRECT	 "direct"
+#define AMQP_EX_TYPE_FANOUT	 "fanout"
+#define AMQP_EX_TYPE_TOPIC	  "topic"
+#define AMQP_EX_TYPE_HEADER	 "header"
 
 PHP_MINIT_FUNCTION(amqp);
 PHP_MSHUTDOWN_FUNCTION(amqp);
 PHP_MINFO_FUNCTION(amqp);
 
-PHP_METHOD(amqp_queue_class, __construct);
-PHP_METHOD(amqp_queue_class, declare);
-PHP_METHOD(amqp_queue_class, consume);
-PHP_METHOD(amqp_queue_class, delete);
-PHP_METHOD(amqp_queue_class, purge);
-PHP_METHOD(amqp_queue_class, bind);
-PHP_METHOD(amqp_queue_class, unbind);
-PHP_METHOD(amqp_queue_class, get);
-PHP_METHOD(amqp_queue_class, cancel);
-PHP_METHOD(amqp_queue_class, ack);
-
-PHP_METHOD(amqp_exchange_class, __construct);
-PHP_METHOD(amqp_exchange_class, declare);
-PHP_METHOD(amqp_exchange_class, delete);
-PHP_METHOD(amqp_exchange_class, bind);
-PHP_METHOD(amqp_exchange_class, publish);
+void amqp_error(amqp_rpc_reply_t x, char ** pstr);
 
 /* True global resources - no need for thread safety here */
 zend_class_entry *amqp_connection_class_entry;
@@ -90,8 +75,15 @@ zend_class_entry *amqp_exception_class_entry,
 
 #define FRAME_MAX				131072	/* max length (size) of frame */
 #define HEADER_FOOTER_SIZE		8	   /*  7 bytes up front, then payload, then 1 byte footer */
-#define PORT					5672	/* default AMQP port */
-#define PORT_STR				"5672"
+#define DEFAULT_PORT			5672	/* default AMQP port */
+#define DEFAULT_PORT_STR		"5672"
+#define DEFAULT_HOST			"localhost"
+#define DEFAULT_VHOST		   "/"
+#define DEFAULT_LOGIN			"guest"
+#define DEFAULT_PASSWORD		"guest"
+#define DEFAULT_ACK				"1"
+#define DEFAULT_MIN_CONSUME		"0"
+#define DEFAULT_MAX_CONSUME		"1"
 #define AMQP_CHANNEL			1	   /* default channel number */
 #define AMQP_HEARTBEAT			0	   /* heartbeat */
 
@@ -102,51 +94,51 @@ zend_class_entry *amqp_exception_class_entry,
 #define AMQP_EXCLUSIVE_D		short exclusive = (AMQP_EXCLUSIVE & parms) ? 1 : 0;
 
 #define AMQP_SET_NAME(ctx, str) (ctx)->name_len = strlen(str) >= sizeof((ctx)->name) ? sizeof((ctx)->name) - 1 : strlen(str); \
-             strncpy((ctx)->name, name, (ctx)->name_len); \
-                 (ctx)->name[(ctx)->name_len] = '\0';
+			 strncpy((ctx)->name, name, (ctx)->name_len); \
+				 (ctx)->name[(ctx)->name_len] = '\0';
 
 /* If you declare any globals in php_amqp.h uncomment this:
  ZEND_DECLARE_MODULE_GLOBALS(amqp)
 */
 
 typedef struct _amqp_connection_object {
-    zend_object zo;
-    char is_connected;
-    char is_channel_connected;
-    char *login;
-    int char_len;
-    char *password;
-    int password_len;
-    char *host;
-    int host_len;
-    char *vhost;
-    int vhost_len;
-    int port;
-    int fd;
-    amqp_connection_state_t conn;
+	zend_object zo;
+	char is_connected;
+	char is_channel_connected;
+	char *login;
+	int char_len;
+	char *password;
+	int password_len;
+	char *host;
+	int host_len;
+	char *vhost;
+	int vhost_len;
+	int port;
+	int fd;
+	amqp_connection_state_t conn;
 } amqp_connection_object;
 
 typedef struct _amqp_queue_object {
-    zend_object zo;
-    zval *cnn;
-    char is_connected;
-    char name[64];
-    int name_len;
-    char consumer_tag[64];
-    int consumer_tag_len;
-    int passive; /* @TODO: consider making these bit fields */
-    int durable;
-    int exclusive;
-    int auto_delete; /* end @TODO */
+	zend_object zo;
+	zval *cnn;
+	char is_connected;
+	char name[64];
+	int name_len;
+	char consumer_tag[64];
+	int consumer_tag_len;
+	int passive; /* @TODO: consider making these bit fields */
+	int durable;
+	int exclusive;
+	int auto_delete; /* end @TODO */
 } amqp_queue_object;
 
 
 typedef struct _amqp_exchange_object {
-    zend_object zo;
-    zval *cnn;
-    char is_connected;
-    char name[64];
-    int name_len;
+	zend_object zo;
+	zval *cnn;
+	char is_connected;
+	char name[64];
+	int name_len;
 } amqp_exchange_object;
 
 #ifdef ZTS

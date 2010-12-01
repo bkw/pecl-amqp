@@ -25,23 +25,19 @@
 
 /* $Id$ */
 
+void amqp_queue_dtor(void *object TSRMLS_DC);
+zend_object_value amqp_queue_ctor(zend_class_entry *ce TSRMLS_DC);
 
-void amqp_dtor(void *object TSRMLS_DC);
-zend_object_value amqp_ctor(zend_class_entry *ce TSRMLS_DC);
-
-void php_amqp_connect(amqp_connection_object *amqp_connection);
-void php_amqp_disconnect(amqp_connection_object *amqp_connection);
-
-PHP_METHOD(amqp_connection_class, __construct);
-PHP_METHOD(amqp_connection_class, isConnected);
-PHP_METHOD(amqp_connection_class, connect);
-PHP_METHOD(amqp_connection_class, disconnect);
-PHP_METHOD(amqp_connection_class, reconnect);
-PHP_METHOD(amqp_connection_class, setLogin);
-PHP_METHOD(amqp_connection_class, setPassword);
-PHP_METHOD(amqp_connection_class, setHost);
-PHP_METHOD(amqp_connection_class, setPort);
-PHP_METHOD(amqp_connection_class, setVhost);
+PHP_METHOD(amqp_queue_class, __construct);
+PHP_METHOD(amqp_queue_class, declare);
+PHP_METHOD(amqp_queue_class, consume);
+PHP_METHOD(amqp_queue_class, delete);
+PHP_METHOD(amqp_queue_class, purge);
+PHP_METHOD(amqp_queue_class, bind);
+PHP_METHOD(amqp_queue_class, unbind);
+PHP_METHOD(amqp_queue_class, get);
+PHP_METHOD(amqp_queue_class, cancel);
+PHP_METHOD(amqp_queue_class, ack);
 
 
 /*

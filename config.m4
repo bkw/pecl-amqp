@@ -61,5 +61,5 @@ if test "$PHP_AMQP" != "no"; then
    PHP_SUBST(AMQP_SHARED_LIBADD)
 
  
-  PHP_NEW_EXTENSION(amqp, amqp.c amqp_connection.c, $ext_shared)
+  PHP_NEW_EXTENSION(amqp, amqp.c amqp_connection.c amqp_exchange.c amqp_queue.c, $ext_shared)
 fi
