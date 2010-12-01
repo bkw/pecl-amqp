@@ -7,7 +7,6 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <channel>pecl.php.net</channel>
  <summary>Communicate with any AMQP compliant server</summary>
  <description>This extension can communicate with any AMQP spec 0-9-1 compatible server, such as RabbitMQ, OpenAMQP and Qpid, giving you the ability to create and delete exchanges and queues, as well as publish to any exchange and consume from any queue.
- 
  </description>
  <lead>
   <name>Pieter de Zwart</name>
@@ -17,7 +16,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
  </lead>
  <date>2010-11-30</date>
  <time>17:50:50</time>
- <version>
+ <version>     
   <release>0.2.0</release>
   <api>0.2.0</api>
  </version>
@@ -27,7 +26,18 @@ http://pear.php.net/dtd/package-2.0.xsd">
  </stability>
  <license uri="http://www.php.net/license">PHP License</license>
  <notes>
-Updating extension to work with new rabbitmq-c library
+Works with AMQP 0-8 and 0-9-1 (used by RabbitMQ 2.*)
+Modified AMQPConnection object:
+    * Requires call to 'connect' method to connect (no longer connects on instantiation)
+    * Added support for disconnect and reconnect
+    * Added helper setters for port, host, vhost, login and password
+Improved consume method to block for MIN messages, and try to get MAX messages if available
+Fixed zval descoping bugs
+Fixed bugs:
+    * 17809: Couldn't compile pecl extension under PHP 5.3
+    * 17831: Segmentation fault when the exchange doesn't exists
+    * 19707: AMQPQueue::get() doesn't return the message
+    * 19840: Connection Exception
  </notes>
  <contents>
   <dir name="/">
