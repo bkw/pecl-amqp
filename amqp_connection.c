@@ -154,6 +154,8 @@ void php_amqp_disconnect(amqp_connection_object *amqp_connection)
 
 	/* End ignoring of SIGPIPEs */
 	signal(SIGPIPE, old_handler);
+	
+	return;
 
 }
 

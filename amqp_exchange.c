@@ -180,7 +180,7 @@ PHP_METHOD(amqp_exchange_class, declare)
 	AMQP_DURABLE_D
 	AMQP_AUTODELETE_D
 	
-	int r = amqp_exchange_declare(ctx_cnn->conn, AMQP_CHANNEL, amqp_cstring_bytes(amqp_name.bytes), amqp_cstring_bytes(type), passive, durable, arguments);
+	int *r = amqp_exchange_declare(ctx_cnn->conn, AMQP_CHANNEL, amqp_cstring_bytes(amqp_name.bytes), amqp_cstring_bytes(type), passive, durable, arguments);
 
 	/* handle any errors that occured outside of signals */
 	if (r) {
