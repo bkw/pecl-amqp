@@ -164,7 +164,7 @@ PHP_METHOD(amqp_exchange_class, declare)
 		zend_throw_exception(amqp_exchange_exception_class_entry, "The given AMQPConnection object is null.", 0 TSRMLS_CC);
 		return;
 	}
-
+	
 	amqp_bytes_t amqp_name;
 	if (name_len) {
 		AMQP_SET_NAME(ctx, name);
@@ -174,38 +174,20 @@ PHP_METHOD(amqp_exchange_class, declare)
 		amqp_name.len = ctx->name_len;
 		amqp_name.bytes = ctx->name;
 	}
-
-	amqp_bytes_t amqp_type;
-	amqp_type.len = type_len;
-	amqp_type.bytes = type;
-
+	
 	AMQP_NULLARGS
 	AMQP_PASSIVE_D
 	AMQP_DURABLE_D
 	AMQP_AUTODELETE_D
+	
+	int r = amqp_exchange_declare(ctx_cnn->conn, AMQP_CHANNEL, amqp_cstring_bytes(amqp_name.bytes), amqp_cstring_bytes(type), passive, durable, arguments);
 
-	res = AMQP_SIMPLE_RPC(
-		ctx_cnn->conn,
-		AMQP_CHANNEL,
-		EXCHANGE,
-		DECLARE,
-		DECLARE_OK,
-		amqp_exchange_declare_t,
-		0,
-		amqp_name,
-		amqp_type,
-		passive,
-		durable,
-		auto_delete,
-		0,
-		0,
-		arguments
-	);
-
-
-	if (res.reply_type != AMQP_RESPONSE_NORMAL) {
+	/* handle any errors that occured outside of signals */
+	if (r) {
 		char str[256];
 		char ** pstr = (char **) &str;
+		res = (amqp_rpc_reply_t)amqp_get_rpc_reply(ctx_cnn->conn); 
+		ctx_cnn->is_connected = '\0';
 		amqp_error(res, pstr);
 		zend_throw_exception(amqp_exchange_exception_class_entry, *pstr, 0 TSRMLS_CC);
 		return;
