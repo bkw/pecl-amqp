@@ -154,8 +154,6 @@ PHP_METHOD(amqp_queue_class, declare)
 		zend_throw_exception(amqp_queue_exception_class_entry, "Could not declare queue. No connection available.", 0 TSRMLS_CC);
 		return;
 	}
-
-	amqp_connection_object *cnn = (amqp_connection_object *) zend_object_store_get_object(ctx->cnn TSRMLS_CC);
 	if (!parms) {
 		parms = AMQP_AUTODELETE; /* default settings */
 	}
@@ -179,7 +177,9 @@ PHP_METHOD(amqp_queue_class, declare)
 	ctx->exclusive = exclusive;
 	ctx->auto_delete = auto_delete;
 	
-	amqp_queue_declare(cnn->conn, AMQP_CHANNEL, amqp_name, passive, durable, exclusive, auto_delete, arguments);
+	ctx_cnn = (amqp_connection_object *) zend_object_store_get_object(ctx->cnn TSRMLS_CC);
+	
+	amqp_queue_declare(ctx_cnn->conn, AMQP_CHANNEL, amqp_name, passive, durable, exclusive, auto_delete, arguments);
 	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(ctx_cnn->conn); 
 	
 	/* handle any errors that occured outside of signals */
@@ -187,7 +187,7 @@ PHP_METHOD(amqp_queue_class, declare)
 		char str[256];
 		char ** pstr = (char **) &str;
 		amqp_error(res, pstr);
-		cnn->is_channel_connected = 0;
+		ctx_cnn->is_connected = '\0';
 		zend_throw_exception(amqp_queue_exception_class_entry, *pstr, 0 TSRMLS_CC);
 		return;
 	}

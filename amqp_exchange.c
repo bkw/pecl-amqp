@@ -180,18 +180,19 @@ PHP_METHOD(amqp_exchange_class, declare)
 	AMQP_DURABLE_D
 	AMQP_AUTODELETE_D
 	
-	int *r = amqp_exchange_declare(ctx_cnn->conn, AMQP_CHANNEL, amqp_cstring_bytes(amqp_name.bytes), amqp_cstring_bytes(type), passive, durable, arguments);
-
+	amqp_exchange_declare(ctx_cnn->conn, AMQP_CHANNEL, amqp_cstring_bytes(amqp_name.bytes), amqp_cstring_bytes(type), passive, durable, arguments);
+	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(ctx_cnn->conn); 
+	
 	/* handle any errors that occured outside of signals */
-	if (r) {
+	if (res.reply_type != AMQP_RESPONSE_NORMAL) {
 		char str[256];
 		char ** pstr = (char **) &str;
-		res = (amqp_rpc_reply_t)amqp_get_rpc_reply(ctx_cnn->conn); 
-		ctx_cnn->is_connected = '\0';
 		amqp_error(res, pstr);
+		ctx_cnn->is_connected = '\0';
 		zend_throw_exception(amqp_exchange_exception_class_entry, *pstr, 0 TSRMLS_CC);
 		return;
 	}
+	
 
 	RETURN_TRUE;
 }

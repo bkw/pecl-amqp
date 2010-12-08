@@ -43,35 +43,6 @@
 
 #include "php_amqp.h"
 
-void amqp_dtor(void *object TSRMLS_DC)
-{
-	amqp_connection_object *ob = (amqp_connection_object*)object;
-
-	php_amqp_disconnect(ob);
-
-	zend_object_std_dtor(&ob->zo TSRMLS_CC);
-
-	efree(object);
-
-}
-
-zend_object_value amqp_ctor(zend_class_entry *ce TSRMLS_DC)
-{
-	zend_object_value new_value;
-	amqp_connection_object* obj = (amqp_connection_object*)emalloc(sizeof(amqp_connection_object));
-
-	memset(obj, 0, sizeof(amqp_connection_object));
-
-	zend_object_std_init(&obj->zo, ce TSRMLS_CC);
-
-	new_value.handle = zend_objects_store_put(obj, (zend_objects_store_dtor_t)zend_objects_destroy_object,
-		(zend_objects_free_object_storage_t)amqp_dtor, NULL TSRMLS_CC);
-	new_value.handlers = zend_get_std_object_handlers();
-
-	return new_value;
-}
-
-
 /**
  * 	php_amqp_connect
  *	handles connecting to amqp
@@ -158,6 +129,35 @@ void php_amqp_disconnect(amqp_connection_object *amqp_connection)
 	return;
 
 }
+
+void amqp_dtor(void *object TSRMLS_DC)
+{
+	amqp_connection_object *ob = (amqp_connection_object*)object;
+
+	php_amqp_disconnect(ob);
+
+	zend_object_std_dtor(&ob->zo TSRMLS_CC);
+
+	efree(object);
+
+}
+
+zend_object_value amqp_ctor(zend_class_entry *ce TSRMLS_DC)
+{
+	zend_object_value new_value;
+	amqp_connection_object* obj = (amqp_connection_object*)emalloc(sizeof(amqp_connection_object));
+
+	memset(obj, 0, sizeof(amqp_connection_object));
+
+	zend_object_std_init(&obj->zo, ce TSRMLS_CC);
+
+	new_value.handle = zend_objects_store_put(obj, (zend_objects_store_dtor_t)zend_objects_destroy_object,
+		(zend_objects_free_object_storage_t)amqp_dtor, NULL TSRMLS_CC);
+	new_value.handlers = zend_get_std_object_handlers();
+
+	return new_value;
+}
+
 
 /**
  * AMQPConnection::__construct
