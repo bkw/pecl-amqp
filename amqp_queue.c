@@ -178,23 +178,11 @@ PHP_METHOD(amqp_queue_class, declare)
 	ctx->durable = durable;
 	ctx->exclusive = exclusive;
 	ctx->auto_delete = auto_delete;
-
-	res = AMQP_SIMPLE_RPC(cnn->conn,
-		AMQP_CHANNEL,
-		QUEUE,
-		DECLARE,
-		DECLARE_OK,
-		amqp_queue_declare_t,
-		0,
-		amqp_name,
-		passive,
-		durable,
-		exclusive,
-		auto_delete,
-		0,
-		arguments
-	);
-
+	
+	amqp_queue_declare(cnn->conn, AMQP_CHANNEL, amqp_name, passive, durable, exclusive, auto_delete, arguments);
+	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(ctx_cnn->conn); 
+	
+	/* handle any errors that occured outside of signals */
 	if (res.reply_type != AMQP_RESPONSE_NORMAL) {
 		char str[256];
 		char ** pstr = (char **) &str;
