@@ -49,7 +49,9 @@ void amqp_queue_dtor(void *object TSRMLS_DC)
 	amqp_queue_object *ob = (amqp_queue_object*)object;
 	
 	/* Destroy the connection object */
-	zval_ptr_dtor(&ob->cnn);
+	if (ob->cnn) {
+		zval_ptr_dtor(&ob->cnn);
+	}
 	
 	/* Destroy this object */
 	efree(object);
@@ -95,17 +97,17 @@ PHP_METHOD(amqp_queue_class, __construct)
 	/* Store the connection object for later */
 	ctx = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
 	ctx->cnn = cnnOb;
-	ctx_cnn = (amqp_connection_object *) zend_object_store_get_object(ctx->cnn TSRMLS_CC);
+	
+	/* Increment the ref count */
+	Z_ADDREF_P(cnnOb);
 
+	ctx_cnn = (amqp_connection_object *) zend_object_store_get_object(ctx->cnn TSRMLS_CC);
 
 	/* Check that the given connection has a channel, before trying to pull the connection off the stack */
 	if (ctx_cnn->is_connected != '\1') {
 		zend_throw_exception(amqp_queue_exception_class_entry, "Could not create queue. No connection available.", 0 TSRMLS_CC);
 		return;
 	}
-	
-	/* Increment the ref count */
-	Z_ADDREF_P(cnnOb);
 
 	if (name_len) {
 		AMQP_SET_NAME(ctx, name);

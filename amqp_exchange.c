@@ -48,7 +48,9 @@ void amqp_exchange_dtor(void *object TSRMLS_DC)
 	amqp_exchange_object *ob = (amqp_exchange_object*)object;
 
 	/* Destroy the connection object */
-	zval_ptr_dtor(&ob->cnn);
+	if (ob->cnn) {
+		zval_ptr_dtor(&ob->cnn);
+	}
 
 	efree(object);
 }
@@ -85,14 +87,18 @@ PHP_METHOD(amqp_exchange_class, __construct)
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo|s", &id, amqp_exchange_class_entry, &cnnOb, &name, &name_len) == FAILURE) {
 		RETURN_FALSE;
 	}
-
+	
 	if (!instanceof_function(Z_OBJCE_P(cnnOb), amqp_connection_class_entry TSRMLS_CC)) {
 		zend_throw_exception(amqp_exchange_exception_class_entry, "The first parameter must be and instance of AMQPConnection.", 0 TSRMLS_CC);
 		return;
 	}
 
 	ctx = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
+	
 	ctx->cnn = cnnOb;
+	/* Increment the ref count */
+	Z_ADDREF_P(cnnOb);
+	
 	ctx_cnn = (amqp_connection_object *) zend_object_store_get_object(ctx->cnn TSRMLS_CC);
 
 	/* Check that the given connection has a channel, before trying to pull the connection off the stack */
@@ -101,13 +107,11 @@ PHP_METHOD(amqp_exchange_class, __construct)
 		return;
 	}
 
+	/* Make sure we have a legit connection object */
 	if(!cnnOb) {
 		zend_throw_exception(amqp_exchange_exception_class_entry, "The given AMQPConnection object is null.", 0 TSRMLS_CC);
 		return;
 	}
-
-	/* Increment the ref count */
-	Z_ADDREF_P(cnnOb);
 
 	if (name_len) {
 		AMQP_SET_NAME(ctx, name);
