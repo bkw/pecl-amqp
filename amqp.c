@@ -46,6 +46,16 @@
 
 #include <unistd.h>
 
+/* True global resources - no need for thread safety here */
+zend_class_entry *amqp_connection_class_entry;
+zend_class_entry *amqp_queue_class_entry;
+zend_class_entry *amqp_exchange_class_entry;
+zend_class_entry *amqp_exception_class_entry,
+				 *amqp_connection_exception_class_entry,
+				 *amqp_exchange_exception_class_entry,
+				 *amqp_queue_exception_class_entry;
+
+
 /* amqp_connection_class ARG_INFO definition */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_connection_class__construct, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
 	ZEND_ARG_ARRAY_INFO(0, credentials, 0)

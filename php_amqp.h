@@ -64,10 +64,10 @@ PHP_MINFO_FUNCTION(amqp);
 void amqp_error(amqp_rpc_reply_t x, char ** pstr);
 
 /* True global resources - no need for thread safety here */
-zend_class_entry *amqp_connection_class_entry;
-zend_class_entry *amqp_queue_class_entry;
-zend_class_entry *amqp_exchange_class_entry;
-zend_class_entry *amqp_exception_class_entry,
+extern zend_class_entry *amqp_connection_class_entry;
+extern zend_class_entry *amqp_queue_class_entry;
+extern zend_class_entry *amqp_exchange_class_entry;
+extern zend_class_entry *amqp_exception_class_entry,
 				 *amqp_connection_exception_class_entry,
 				 *amqp_exchange_exception_class_entry,
 				 *amqp_queue_exception_class_entry;
