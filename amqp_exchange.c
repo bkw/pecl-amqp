@@ -381,9 +381,9 @@ PHP_METHOD(amqp_exchange_class, publish)
 
 	zdata = NULL;
 	if (iniArr && SUCCESS == zend_hash_find(HASH_OF (iniArr), "delivery_mode", sizeof("delivery_mode"), (void*)&zdata)) {
-		convert_to_string(*zdata);
+		convert_to_long(*zdata);
 	}
-	if (zdata && strlen(Z_STRVAL_PP(zdata)) > 0) {
+	if (zdata) {
 		props.delivery_mode = (uint8_t)Z_LVAL_PP(zdata);
 		props._flags += AMQP_BASIC_DELIVERY_MODE_FLAG;
 	}
@@ -391,18 +391,18 @@ PHP_METHOD(amqp_exchange_class, publish)
 
 	zdata = NULL;
 	if (iniArr && SUCCESS == zend_hash_find(HASH_OF (iniArr), "priority", sizeof("priority"), (void*)&zdata)) {
-		convert_to_string(*zdata);
+		convert_to_long(*zdata);
 	}
-	if (zdata && strlen(Z_STRVAL_PP(zdata)) > 0) {
+	if (zdata) {
 		props.priority = (uint8_t)Z_LVAL_PP(zdata);
 		props._flags += AMQP_BASIC_PRIORITY_FLAG;
 	}
 
 	zdata = NULL;
 	if (iniArr && SUCCESS == zend_hash_find(HASH_OF (iniArr), "timestamp", sizeof("timestamp"), (void*)&zdata)) {
-		convert_to_string(*zdata);
+		convert_to_long(*zdata);
 	}
-	if (zdata && strlen(Z_STRVAL_PP(zdata)) > 0) {
+	if (zdata) {
 		props.timestamp = (uint64_t)Z_LVAL_PP(zdata);
 		props._flags += AMQP_BASIC_TIMESTAMP_FLAG;
 	}
