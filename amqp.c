@@ -55,7 +55,7 @@ zend_class_entry *amqp_exception_class_entry,
 				 *amqp_exchange_exception_class_entry,
 				 *amqp_queue_exception_class_entry;
 
-
+/* The last parameter of ZEND_BEGIN_ARG_INFO_EX indicates how many of the method parameters are required. */
 /* amqp_connection_class ARG_INFO definition */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_connection_class__construct, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
 	ZEND_ARG_ARRAY_INFO(0, credentials, 0)
@@ -104,7 +104,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_declare, ZEND_SEND_BY_VAL, ZEND_
 	ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_delete, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_delete, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
 	ZEND_ARG_INFO(0, queue_name)
 ZEND_END_ARG_INFO()
 
@@ -112,7 +112,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_purge, ZEND_SEND_BY_VAL, ZEND_RE
 	ZEND_ARG_INFO(0, queue_name)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_bind, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_bind, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 2)
 	ZEND_ARG_INFO(0, exchange_name)
 	ZEND_ARG_INFO(0, routing_key)
 ZEND_END_ARG_INFO()
@@ -144,7 +144,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class__construct, ZEND_SEND_BY_VAL,
 	ZEND_ARG_INFO(0, exchange_name)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_declare, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_declare, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 2)
 	ZEND_ARG_INFO(0, exchange_name)
 	ZEND_ARG_INFO(0, exchange_type)
 	ZEND_ARG_INFO(0, flags)
