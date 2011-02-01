@@ -4,7 +4,7 @@ dnl config.m4 for extension rabbit
 dnl Comments in this file start with the string 'dnl'.
 dnl Remove where necessary. This file will not work
 dnl without editing.
-amqp
+dnl amqp
 dnl If your extension references something external, use with:
 
 
@@ -24,22 +24,15 @@ if test "$PHP_AMQP" != "no"; then
   	 #SEARCH_FOR="/usr/local/include/amqp_framing.h"  
          SEARCH_FOR="amqp_framing.h"  
 
-    dnl AC_MSG_CHECKING($SEARCH_FOR)
      AC_MSG_CHECKING([for amqp files in default path])
-     AC_MSG_RESULT($INCLUDE_PATH)
-
-
-      for i in $SEARCH_PATH ; do
+      for i in $PHP_AMQP $SEARCH_PATH ; do
        if test -r $i/include/$SEARCH_FOR; 
-             AC_MSG_RESULT(test $i/include/$SEARCH_FOR) 
        then
             AMQP_DIR=$i
             AC_MSG_RESULT(found in $i)
+            break
          fi
        done
-
-     AC_MSG_CHECKING([path $AMQP_DIR ])
-     AC_MSG_RESULT($AMQP_DIR)
 
 
     if test -z "$AMQP_DIR"; then
