@@ -159,9 +159,8 @@ zend_object_value amqp_ctor(zend_class_entry *ce TSRMLS_DC)
 }
 
 
-/**
- * AMQPConnection::__construct
- * @param	array	options	(optional)	can contain 'host', 'port', 'login', 'password', 'vhost'
+/* {{{ proto AMQPConnection::__construct([array optional])
+ * The array can contain 'host', 'port', 'login', 'password', 'vhost' indexes
  */
 PHP_METHOD(amqp_connection_class, __construct)
 {
