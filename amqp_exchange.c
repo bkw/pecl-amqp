@@ -71,7 +71,7 @@ zend_object_value amqp_exchange_ctor(zend_class_entry *ce TSRMLS_DC)
 	return new_value;
 }
 
-/* {{{ proto AMQPEexchange( AMQPConnection cnn, [string name]);
+/* {{{ proto AMQPExchange::__construct( AMQPConnection cnn, [string name]);
 declare Exchange   */
 PHP_METHOD(amqp_exchange_class, __construct)
 {
@@ -79,20 +79,18 @@ PHP_METHOD(amqp_exchange_class, __construct)
 	zval *cnnOb;
 	amqp_exchange_object *ctx;
 	amqp_connection_object *ctx_cnn;
+	zend_error_handling error_handling;
 
 	char *name;
 	int name_len = 0;
 	amqp_rpc_reply_t res;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo|s", &id, amqp_exchange_class_entry, &cnnOb, &name, &name_len) == FAILURE) {
-		RETURN_FALSE;
-	}
-	
-	if (!instanceof_function(Z_OBJCE_P(cnnOb), amqp_connection_class_entry TSRMLS_CC)) {
-		zend_throw_exception(amqp_exchange_exception_class_entry, "The first parameter must be and instance of AMQPConnection.", 0 TSRMLS_CC);
+	zend_replace_error_handling(EH_THROW, amqp_exchange_exception_class_entry, &error_handling TSRMLS_CC);
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "OO|s", &id, amqp_exchange_class_entry, &cnnOb, amqp_connection_class_entry, &name, &name_len) == FAILURE) {
+		zend_restore_error_handling(&error_handling TSRMLS_CC);
 		return;
 	}
-
+	
 	ctx = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
 	
 	ctx->cnn = cnnOb;
@@ -103,13 +101,8 @@ PHP_METHOD(amqp_exchange_class, __construct)
 
 	/* Check that the given connection has a channel, before trying to pull the connection off the stack */
 	if (ctx_cnn->is_connected != '\1') {
-		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not create exchange. No connection available.", 0 TSRMLS_CC);
-		return;
-	}
-
-	/* Make sure we have a legit connection object */
-	if(!cnnOb) {
-		zend_throw_exception(amqp_exchange_exception_class_entry, "The given AMQPConnection object is null.", 0 TSRMLS_CC);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Could not create exchange. No connection available.");
+		zend_restore_error_handling(&error_handling TSRMLS_CC);
 		return;
 	}
 
@@ -120,11 +113,13 @@ PHP_METHOD(amqp_exchange_class, __construct)
 	/* We have a valid connection: */
 	ctx->is_connected = '\1';
 
+	zend_restore_error_handling(&error_handling TSRMLS_CC);
+
 }
 /* }}} */
 
 
-/* {{{ proto AMQPExchange::declare( [string name], [string type=direct], [ bit params ]);
+/* {{{ proto AMQPExchange::declare( [string name, [string type=direct, [ long params ]]]);
 declare Exchange
 */
 PHP_METHOD(amqp_exchange_class, declare)
@@ -204,7 +199,7 @@ PHP_METHOD(amqp_exchange_class, declare)
 
 
 
-/* {{{ proto AMQPEexchange::delete([string name]);
+/* {{{ proto AMQPExchange::delete([string name[, long params]]);
 delete Exchange
 */
 PHP_METHOD(amqp_exchange_class, delete)
@@ -274,7 +269,7 @@ PHP_METHOD(amqp_exchange_class, delete)
 }
 /* }}} */
 
-/* {{{ proto AMQPEexchange::publish(string msg, string key, [params, attributes]);
+/* {{{ proto AMQPExchange::publish(string msg, string key, [int params, [array attributes]]);
 publish into Exchange
 */
 PHP_METHOD(amqp_exchange_class, publish)
