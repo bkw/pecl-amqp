@@ -536,6 +536,10 @@ PHP_METHOD(amqp_queue_class, consume)
 		max_consume = (size_t)Z_LVAL_PP(zdata);
 	}
 
+	if (min_consume > max_consume) {
+		zend_throw_exception(amqp_queue_exception_class_entry, "'min' cannot be more then 'max' consume", 0 TSRMLS_CC);
+	}
+
 	/* Pull the auto ack settings out of the config array */
 	ack = INI_INT("amqp.ack");
 	zdata = NULL;
