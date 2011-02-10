@@ -963,7 +963,7 @@ PHP_METHOD(amqp_queue_class, get)
 
 			if (p->_flags & AMQP_BASIC_MESSAGE_ID_FLAG) {
 				add_assoc_stringl_ex(return_value,
-					"mesage_id",
+					"message_id",
 					sizeof("message_id"),
 					p->message_id.bytes,
 					p->message_id.len,
