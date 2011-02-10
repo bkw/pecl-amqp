@@ -373,15 +373,7 @@ PHP_MINFO_FUNCTION(amqp)
 	php_info_print_table_header(2, "Version",					"$Revision$");
 	php_info_print_table_header(2, "Compiled",					*pstr);
 	php_info_print_table_header(2, "AMQP protocol version", 	"8.0");
-	php_info_print_table_header(2, "Default host",				DEFAULT_HOST);
-	php_info_print_table_header(2, "Default virtual host",		DEFAULT_VHOST);
-	php_info_print_table_header(2, "Default port",				DEFAULT_PORT_STR);
-	php_info_print_table_header(2, "Default login",				DEFAULT_LOGIN);
-	php_info_print_table_header(2, "Default password",			DEFAULT_PASSWORD);
-	php_info_print_table_header(2, "Default acknowledegement",	DEFAULT_ACK);
-	php_info_print_table_header(2, "Default minimum messages to consume",	DEFAULT_MIN_CONSUME);
-	php_info_print_table_header(2, "Default maximum messages to consume",	DEFAULT_MAX_CONSUME);
-	php_info_print_table_end();
+	DISPLAY_INI_ENTRIES();
 
 }
 /* }}} */
