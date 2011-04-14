@@ -586,7 +586,7 @@ PHP_METHOD(amqp_queue_class, consume)
 	array_init(return_value);
 	char *buf = NULL;
 
-	buf = (char*) malloc(FRAME_MAX);
+	buf = (char*) emalloc(FRAME_MAX);
 	if (!buf) {
 		zend_throw_exception(zend_exception_get_default(TSRMLS_C), "Out of memory (malloc)" ,0 TSRMLS_CC);	 
 	}
@@ -734,9 +734,9 @@ PHP_METHOD(amqp_queue_class, consume)
 			int count_buf = body_target / FRAME_MAX +1;
 			int resize = count_buf * FRAME_MAX;
 			buf_max = resize;
-			pbuf = realloc(buf, resize);
+			pbuf = erealloc(buf, resize);
 			if (!pbuf) {
-				free(buf);
+				efree(buf);
 				zend_throw_exception(zend_exception_get_default(TSRMLS_C), "The memory is out (realloc)", 0 TSRMLS_CC);
 			}
 			buf = pbuf; 
