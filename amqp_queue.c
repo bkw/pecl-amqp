@@ -156,7 +156,7 @@ PHP_METHOD(amqp_queue_class, declare)
 		zend_throw_exception(amqp_queue_exception_class_entry, "Could not declare queue. No connection available.", 0 TSRMLS_CC);
 		return;
 	}
-	if (!parms) {
+	if (ZEND_NUM_ARGS() == 1) {
 		parms = AMQP_AUTODELETE; /* default settings */
 	}
 

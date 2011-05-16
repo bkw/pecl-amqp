@@ -52,15 +52,18 @@ void amqp_exchange_dtor(void *object TSRMLS_DC)
 		zval_ptr_dtor(&ob->cnn);
 	}
 
+	zend_object_std_dtor(&ob->zo TSRMLS_CC);
+
 	efree(object);
 }
 
 zend_object_value amqp_exchange_ctor(zend_class_entry *ce TSRMLS_DC)
 {
 	zend_object_value new_value;
-	amqp_queue_object* obj = (amqp_queue_object*)emalloc(sizeof(amqp_queue_object));
+	amqp_exchange_object* obj = (amqp_exchange_object*)emalloc(sizeof(amqp_exchange_object));
 
 	memset(obj, 0, sizeof(amqp_exchange_object));
+        obj->name_len = -1;
 
 	zend_object_std_init(&obj->zo, ce TSRMLS_CC);
 
@@ -81,7 +84,8 @@ PHP_METHOD(amqp_exchange_class, __construct)
 	amqp_connection_object *ctx_cnn;
 	zend_error_handling error_handling;
 
-	char *name;
+
+	char *name = 0;
 	int name_len = 0;
 	amqp_rpc_reply_t res;
 
@@ -92,7 +96,7 @@ PHP_METHOD(amqp_exchange_class, __construct)
 	}
 	
 	ctx = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
-	
+
 	ctx->cnn = cnnOb;
 	/* Increment the ref count */
 	Z_ADDREF_P(cnnOb);
@@ -106,7 +110,7 @@ PHP_METHOD(amqp_exchange_class, __construct)
 		return;
 	}
 
-	if (name_len) {
+        if (ZEND_NUM_ARGS() > 1 && name) {
 		AMQP_SET_NAME(ctx, name);
 	}
 
@@ -130,7 +134,7 @@ PHP_METHOD(amqp_exchange_class, declare)
 	amqp_exchange_object *ctx;
 	amqp_connection_object *ctx_cnn;
 
-	char *name;
+	char *name = 0;
 	int name_len = 0;
 	char *type;
 	int type_len = 0;
@@ -191,7 +195,6 @@ PHP_METHOD(amqp_exchange_class, declare)
 		zend_throw_exception(amqp_exchange_exception_class_entry, *pstr, 0 TSRMLS_CC);
 		return;
 	}
-	
 
 	RETURN_TRUE;
 }
@@ -210,7 +213,7 @@ PHP_METHOD(amqp_exchange_class, delete)
 	amqp_exchange_object *ctx;
 	amqp_connection_object *ctx_cnn;
 
-	char *name;
+	char *name = 0;
 	int name_len = 0;
 	long parms = 0;
 
@@ -301,7 +304,7 @@ PHP_METHOD(amqp_exchange_class, publish)
 
 	ctx = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
 
-	if (!ctx->name_len) {
+	if (ctx->name_len < 0) {
 		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not publish to exchange. Exchange name not set.", 0 TSRMLS_CC);
 		return;
 	}
@@ -428,6 +431,55 @@ PHP_METHOD(amqp_exchange_class, publish)
 		props.reply_to = amqp_cstring_bytes((char*)Z_STRVAL_PP(zdata));
 		props._flags += AMQP_BASIC_REPLY_TO_FLAG;
 	}
+
+	zdata = NULL;
+	if (iniArr && SUCCESS == zend_hash_find(HASH_OF (iniArr), "headers", sizeof("headers"), (void*)&zdata)) {
+                HashTable *headers;
+                HashPosition pos;
+
+                convert_to_array(*zdata);
+                headers = HASH_OF(*zdata);
+                zend_hash_internal_pointer_reset_ex(headers, &pos);
+
+                props._flags += AMQP_BASIC_HEADERS_FLAG;
+                props.headers.entries = emalloc(sizeof(struct amqp_table_entry_t_) * zend_hash_num_elements(headers));
+                props.headers.num_entries = 0;
+
+                while(zend_hash_get_current_data_ex(headers, (void **)&zdata, &pos) == SUCCESS) {
+                    char  *string_key;
+                    uint   string_key_len;
+                    int    type;
+                    ulong  num_key;
+
+                    type = zend_hash_get_current_key_ex(headers, &string_key, &string_key_len, &num_key, 0, &pos);
+
+                    props.headers.entries[props.headers.num_entries].key.bytes = string_key;
+                    props.headers.entries[props.headers.num_entries].key.len = string_key_len;
+
+                    if (Z_TYPE_P(*zdata) == IS_STRING) {
+                        convert_to_string(*zdata);
+                        props.headers.entries[props.headers.num_entries].value.kind = AMQP_FIELD_KIND_UTF8;
+                        props.headers.entries[props.headers.num_entries].value.value.bytes.bytes = Z_STRVAL_P(*zdata);
+                        props.headers.entries[props.headers.num_entries].value.value.bytes.len = Z_STRLEN_P(*zdata);
+                        props.headers.num_entries++;
+                    } else if (Z_TYPE_P(*zdata) == IS_LONG) {
+                        convert_to_long(*zdata);
+                        props.headers.entries[props.headers.num_entries].value.kind = AMQP_FIELD_KIND_I32;
+                        props.headers.entries[props.headers.num_entries].value.value.i32 = Z_LVAL_P(*zdata);
+                        props.headers.num_entries++;
+                    } else if (Z_TYPE_P(*zdata) == IS_DOUBLE) {
+                        convert_to_double(*zdata);
+                        props.headers.entries[props.headers.num_entries].value.kind = AMQP_FIELD_KIND_F32;
+                        props.headers.entries[props.headers.num_entries].value.value.f32 = (double)Z_DVAL_P(*zdata);
+                        props.headers.num_entries++;
+                    }
+
+                    zend_hash_move_forward_ex(headers, &pos);
+                }
+
+        } else {
+            props.headers.entries = 0;
+        }
 	
 	if (ctx->is_connected != '\1') {
 		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not publish. No connection available.", 0 TSRMLS_CC);
@@ -458,6 +510,9 @@ PHP_METHOD(amqp_exchange_class, publish)
 		&props,
 		(amqp_bytes_t) {msg_len, msg }
 	);
+
+        if (props.headers.entries)
+            efree(props.headers.entries);
 	
 	/* End ignoring of SIGPIPEs */
 	signal(SIGPIPE, old_handler);
