@@ -1,25 +1,26 @@
 /*
   +---------------------------------------------------------------------+
-  | PHP Version 5														|
+  | PHP Version 5							|
   +---------------------------------------------------------------------+
-  | Copyright (c) 1997-2007 The PHP Group								|
+  | Copyright (c) 1997-2007 The PHP Group				|
   +---------------------------------------------------------------------+
-  | This source file is subject to version 3.01 of the PHP license,		|
-  | that is bundled with this package in the file LICENSE, and is		|
-  | available through the world-wide-web at the following url:			|
-  | http://www.php.net/license/3_01.txt									|
+  | This source file is subject to version 3.01 of the PHP license,	|
+  | that is bundled with this package in the file LICENSE, and is	|
+  | available through the world-wide-web at the following url:		|
+  | http://www.php.net/license/3_01.txt					|
   | If you did not receive a copy of the PHP license and are unable to	|
-  | obtain it through the world-wide-web, please send a note to			|
-  | license@php.net so we can mail you a copy immediately.				|
-  |																		|
+  | obtain it through the world-wide-web, please send a note to		|
+  | license@php.net so we can mail you a copy immediately.		|
+  |									|
   | This source uses the librabbitmq under the MPL. For the MPL, please |
-  | see LICENSE-MPL-RabbitMQ											|
+  | see LICENSE-MPL-RabbitMQ						|
   +---------------------------------------------------------------------+
   | Author: Alexandre Kalendarev akalend@mail.ru Copyright (c) 2009-2010|
-  | Maintainer: Pieter de Zwart pdezwart@php.net						|
-  | Contributers:														|
-  | - Andrey Hristov													|
-  | - Brad Rodriguez brodriguez@php.net									|
+  | Maintainer: Pieter de Zwart pdezwart@php.net			|
+  | Contributers:							|
+  | - Andrey Hristov							|
+  | - Brad Rodriguez brodriguez@php.net					|
+  | - Jonathan Tansavatdi jtansavatdi@php.net                           |
   +---------------------------------------------------------------------+
 */
 
@@ -497,8 +498,6 @@ PHP_METHOD(amqp_queue_class, consume)
 {
 	zval *id;
 	amqp_queue_object *ctx;
-	char *name;
-	int name_len;
 	int queue_len;
 	amqp_rpc_reply_t res;
 	
@@ -585,14 +584,7 @@ PHP_METHOD(amqp_queue_class, consume)
 	int i;
 	array_init(return_value);
 	char *buf = NULL;
-
-	buf = (char*) emalloc(FRAME_MAX);
-	if (!buf) {
-		zend_throw_exception(zend_exception_get_default(TSRMLS_C), "Out of memory (malloc)" ,0 TSRMLS_CC);	 
-	}
-
-	zval *message;
-	MAKE_STD_ZVAL(message);
+	
 	amqp_boolean_t messages_left;
 
 	for (i = 0; i < max_consume; i++) {
@@ -634,6 +626,8 @@ PHP_METHOD(amqp_queue_class, consume)
 		}
 
 		/* initialize message array */
+		zval *message;
+		MAKE_STD_ZVAL(message);
 		array_init(message);
 
 		/* get message metadata */
@@ -729,6 +723,11 @@ PHP_METHOD(amqp_queue_class, consume)
 		body_target = frame.payload.properties.body_size;
 		body_received = 0;
 		
+		buf = (char*) emalloc(FRAME_MAX);
+		if (!buf) {
+			zend_throw_exception(zend_exception_get_default(TSRMLS_C), "Out of memory (malloc)" ,0 TSRMLS_CC);   
+		}
+
 		/* resize buffer if necessary */
 		if (body_target > buf_max) {
 			int count_buf = body_target / FRAME_MAX +1;
