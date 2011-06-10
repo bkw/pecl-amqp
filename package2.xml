@@ -14,11 +14,11 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <email>pdezwart@php.net</email>
   <active>yes</active>
  </lead>
- <date>2011-01-02</date>
- <time>12:50:50</time>
+ <date>2011-06-09</date>
+ <time>18:50:50</time>
  <version>     
-  <release>0.2.2</release>
-  <api>0.2.2</api>
+  <release>0.3.0</release>
+  <api>0.3.0</api>
  </version>
  <stability>
   <release>beta</release>
@@ -26,6 +26,14 @@ http://pear.php.net/dtd/package-2.0.xsd">
  </stability>
  <license uri="http://www.php.net/license">PHP License</license>
  <notes>
+0.3.0 Release:
+Fixed memory leaks in many functions (courtesy Jonathan Tansavatdi & Andy Wick)
+Fixed consume method to return proper values
+Cleaned up variable usage
+Fixed bugs:
+    * 22638: Unexpected exit code 1 with AMQPQueue::consume()
+    * 22698: AMQPQueue::consume
+
 0.2.2 Release:
 Made extension compatible with PHP lt 5.3 (courtesy John Skopis)
 Fixed wrong typing of message properties (courtesy John Skopis)
