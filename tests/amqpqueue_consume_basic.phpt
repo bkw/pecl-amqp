@@ -30,61 +30,14 @@ $options = array(
  'max' => 10,
  'ack' => false
 );
-$msg = $q->consume($options);
-var_dump($msg);
+$msgs = $q->consume($options);
+
+foreach ($msgs as $msg) {
+    echo $msg["message_body"] . "\n";
+}
 ?>
 --EXPECT--
-array(3) {
-  [0]=>
-  array(7) {
-    ["consumer_tag"]=>
-    string(33) "amq.ctag-B7pSjCczI4Q3aJMmYSz03Q=="
-    ["delivery_tag"]=>
-    int(1)
-    ["redelivered"]=>
-    bool(false)
-    ["routing_key"]=>
-    string(9) "routing.1"
-    ["exchange"]=>
-    string(9) "exchange1"
-    ["Content-type"]=>
-    string(10) "text/plain"
-    ["message_body"]=>
-    string(7) "message"
-  }
-  [1]=>
-  array(7) {
-    ["consumer_tag"]=>
-    string(33) "amq.ctag-B7pSjCczI4Q3aJMmYSz03Q=="
-    ["delivery_tag"]=>
-    int(2)
-    ["redelivered"]=>
-    bool(false)
-    ["routing_key"]=>
-    string(9) "routing.2"
-    ["exchange"]=>
-    string(9) "exchange1"
-    ["Content-type"]=>
-    string(10) "text/plain"
-    ["message_body"]=>
-    string(8) "message2"
-  }
-  [2]=>
-  array(7) {
-    ["consumer_tag"]=>
-    string(33) "amq.ctag-B7pSjCczI4Q3aJMmYSz03Q=="
-    ["delivery_tag"]=>
-    int(3)
-    ["redelivered"]=>
-    bool(false)
-    ["routing_key"]=>
-    string(9) "routing.3"
-    ["exchange"]=>
-    string(9) "exchange1"
-    ["Content-type"]=>
-    string(10) "text/plain"
-    ["message_body"]=>
-    string(8) "message3"
-  }
-}
+message
+message2
+message3
 
