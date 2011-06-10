@@ -27,7 +27,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <license uri="http://www.php.net/license">PHP License</license>
  <notes>
 0.3.0 Release:
-Fixed memory leaks in many functions (courtesy Jonathan Tansavatdi & Andy Wick)
+Fixed memory leaks in many functions (courtesy Jonathan Tansavatdi and Andy Wick)
 Fixed consume method to return proper values
 Cleaned up variable usage
 Fixed bugs:
