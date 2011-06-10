@@ -4,9 +4,6 @@ Connection Exception
 <?php if (!extension_loaded("amqp")) print "skip"; ?>
 --FILE--
 <?php
-
-<?php
-
 $conn = new AMQPConnection();
 $exchangeName = "bug_unknown_" . time();
 
@@ -30,8 +27,6 @@ for ($i = 0; $i < 10; $i++ ) {
     $published = $publisher->publish($message, $key, $params, $attributes);
     if (!$published) {
         echo "message publishing failed\n";
-    } else {
-        echo "Published $message\n";
     }
 }
 
@@ -40,12 +35,8 @@ $options = array(
     'max' => 5,
     'ack' => true
 );
-echo __LINE__ . "\n";
 $data = $consumer->consume($options);
-echo "Tried to grab " . $options['max'] . ", got " . count($data) . ", ignoring and exiting \n";
-
 echo "Success\n";
-
 ?>
 --EXPECT--
 Success
