@@ -48,7 +48,7 @@
  *	handles connecting to amqp
  *	called by connect() and reconnect()
  */
-void php_amqp_connect(amqp_connection_object *amqp_connection)
+void php_amqp_connect(amqp_connection_object *amqp_connection TSRMLS_DC)
 {
 	char str[256];
 	char ** pstr = (char **) &str;
@@ -298,7 +298,7 @@ PHP_METHOD(amqp_connection_class, connect)
 	/* Get the connection object out of the store */
 	amqp_connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
 
-	php_amqp_connect(amqp_connection);
+	php_amqp_connect(amqp_connection TSRMLS_CC);
 	/* @TODO: return connection success or failure */
 	RETURN_TRUE;
 }
@@ -345,7 +345,7 @@ PHP_METHOD(amqp_connection_class, reconnect)
 	if (amqp_connection->is_connected) {
 		php_amqp_disconnect(amqp_connection);
 	}
-	php_amqp_connect(amqp_connection);
+	php_amqp_connect(amqp_connection TSRMLS_CC);
 	/* @TODO: return the success or failure of connect */
 	RETURN_TRUE;
 }

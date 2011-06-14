@@ -433,6 +433,15 @@ PHP_METHOD(amqp_exchange_class, publish)
 	}
 
 	zdata = NULL;
+	if (iniArr && SUCCESS == zend_hash_find(HASH_OF (iniArr), "correlation_id", sizeof("correlation_id"), (void*)&zdata)) {
+		convert_to_string(*zdata);
+	}
+	if (zdata && strlen(Z_STRVAL_PP(zdata)) > 0) {
+		props.correlation_id = amqp_cstring_bytes((char*)Z_STRVAL_PP(zdata));
+		props._flags += AMQP_BASIC_CORRELATION_ID_FLAG;
+	}
+
+	zdata = NULL;
 	if (iniArr && SUCCESS == zend_hash_find(HASH_OF (iniArr), "headers", sizeof("headers"), (void*)&zdata)) {
                 HashTable *headers;
                 HashPosition pos;
@@ -454,7 +463,7 @@ PHP_METHOD(amqp_exchange_class, publish)
                     type = zend_hash_get_current_key_ex(headers, &string_key, &string_key_len, &num_key, 0, &pos);
 
                     props.headers.entries[props.headers.num_entries].key.bytes = string_key;
-                    props.headers.entries[props.headers.num_entries].key.len = string_key_len;
+                    props.headers.entries[props.headers.num_entries].key.len = string_key_len-1;
 
                     if (Z_TYPE_P(*zdata) == IS_STRING) {
                         convert_to_string(*zdata);
@@ -541,8 +550,6 @@ PHP_METHOD(amqp_exchange_class, bind)
 	zval *id;
 	amqp_exchange_object *ctx;
 	amqp_connection_object *ctx_cnn;
-	char *name;
-	int name_len;
 	char *queue_name;
 	int queue_name_len;
 	char *keyname;

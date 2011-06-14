@@ -720,6 +720,77 @@ PHP_METHOD(amqp_queue_class, consume)
 				p->reply_to.len, 1);
 		}
 
+		if (p->_flags & AMQP_BASIC_CORRELATION_ID_FLAG) {
+			add_assoc_stringl_ex(message, "correlation_id", sizeof("correlation_id"),
+				p->correlation_id.bytes,
+				p->correlation_id.len, 1);
+		}
+
+		if (p->_flags & AMQP_BASIC_HEADERS_FLAG) {
+			zval *headers;
+			int   i;
+
+			MAKE_STD_ZVAL(headers);
+			array_init(headers);
+			for (i = 0; i < p->headers.num_entries; i++) {
+				amqp_table_entry_t *entry = &(p->headers.entries[i]);
+
+				switch (entry->value.kind) {
+					case AMQP_FIELD_KIND_BOOLEAN:
+						add_assoc_bool_ex(headers, entry->key.bytes, entry->key.len+1, entry->value.value.boolean);
+						break;
+					case AMQP_FIELD_KIND_I8:
+						add_assoc_long_ex(headers, entry->key.bytes, entry->key.len+1, entry->value.value.i8);
+						break;
+					case AMQP_FIELD_KIND_U8:
+						add_assoc_long_ex(headers, entry->key.bytes, entry->key.len+1, entry->value.value.u8);
+						break;
+					case AMQP_FIELD_KIND_I16:
+						add_assoc_long_ex(headers, entry->key.bytes, entry->key.len+1, entry->value.value.i16);
+						break;
+					case AMQP_FIELD_KIND_U16:
+						add_assoc_long_ex(headers, entry->key.bytes, entry->key.len+1, entry->value.value.u16);
+						break;
+					case AMQP_FIELD_KIND_I32:
+						add_assoc_long_ex(headers, entry->key.bytes, entry->key.len+1, entry->value.value.i32);
+						break;
+					case AMQP_FIELD_KIND_U32:
+						add_assoc_long_ex(headers, entry->key.bytes, entry->key.len+1, entry->value.value.u32);
+						break;
+					case AMQP_FIELD_KIND_I64:
+						add_assoc_long_ex(headers, entry->key.bytes, entry->key.len+1, entry->value.value.i64);
+						break;
+					case AMQP_FIELD_KIND_U64:
+						add_assoc_long_ex(headers, entry->key.bytes, entry->key.len+1, entry->value.value.u64);
+						break;
+					case AMQP_FIELD_KIND_F32:
+						add_assoc_double_ex(headers, entry->key.bytes, entry->key.len+1, entry->value.value.f32);
+						break;
+					case AMQP_FIELD_KIND_F64:
+						add_assoc_double_ex(headers, entry->key.bytes, entry->key.len+1, entry->value.value.f64);
+						break;
+					case AMQP_FIELD_KIND_UTF8:
+						add_assoc_stringl_ex(headers, entry->key.bytes, entry->key.len+1,
+													entry->value.value.bytes.bytes, entry->value.value.bytes.len, 1);
+						break;
+					case AMQP_FIELD_KIND_BYTES:
+						add_assoc_stringl_ex(headers, entry->key.bytes, entry->key.len,
+													entry->value.value.bytes.bytes, entry->value.value.bytes.len, 1);
+					break;
+
+					case AMQP_FIELD_KIND_ARRAY:
+					case AMQP_FIELD_KIND_TIMESTAMP:
+					case AMQP_FIELD_KIND_TABLE:
+					case AMQP_FIELD_KIND_VOID:
+					case AMQP_FIELD_KIND_DECIMAL:
+					break;
+				}
+			}
+
+			add_assoc_zval_ex(message, "headers", sizeof("headers"), headers);
+			
+		}
+
 		body_target = frame.payload.properties.body_size;
 		body_received = 0;
 		
@@ -980,6 +1051,16 @@ PHP_METHOD(amqp_queue_class, get)
 					sizeof("Reply-to"),
 					p->reply_to.bytes,
 					p->reply_to.len,
+					1
+				);
+			}
+
+			if (p->_flags & AMQP_BASIC_CORRELATION_ID_FLAG) {
+				add_assoc_stringl_ex(return_value,
+					"correlation_id",
+					sizeof("correlation_id"),
+					p->correlation_id.bytes,
+					p->correlation_id.len,
 					1
 				);
 			}

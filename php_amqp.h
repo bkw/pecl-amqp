@@ -202,9 +202,9 @@ typedef struct _amqp_queue_object {
 	zend_object zo;
 	zval *cnn;
 	char is_connected;
-	char name[64];
+	char name[255];
 	int name_len;
-	char consumer_tag[64];
+	char consumer_tag[255];
 	int consumer_tag_len;
 	int passive; /* @TODO: consider making these bit fields */
 	int durable;
@@ -217,7 +217,7 @@ typedef struct _amqp_exchange_object {
 	zend_object zo;
 	zval *cnn;
 	char is_connected;
-	char name[64];
+	char name[255];
 	int name_len;
 } amqp_exchange_object;
 
