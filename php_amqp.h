@@ -158,7 +158,7 @@ extern zend_class_entry *amqp_exception_class_entry,
 #define DEFAULT_PORT			5672	/* default AMQP port */
 #define DEFAULT_PORT_STR		"5672"
 #define DEFAULT_HOST			"localhost"
-#define DEFAULT_VHOST		   "/"
+#define DEFAULT_VHOST			"/"
 #define DEFAULT_LOGIN			"guest"
 #define DEFAULT_PASSWORD		"guest"
 #define DEFAULT_ACK				"1"

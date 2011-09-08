@@ -38,6 +38,7 @@ PHP_METHOD(amqp_queue_class, unbind);
 PHP_METHOD(amqp_queue_class, get);
 PHP_METHOD(amqp_queue_class, cancel);
 PHP_METHOD(amqp_queue_class, ack);
+PHP_METHOD(amqp_queue_class, getName);
 
 
 /*

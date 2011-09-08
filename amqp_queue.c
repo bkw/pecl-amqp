@@ -45,6 +45,29 @@
 #include "php_amqp.h"
 
 
+static char *stringify_bytes(amqp_bytes_t bytes)
+{
+/* We will need up to 4 chars per byte, plus the terminating 0 */
+	char *res = malloc(bytes.len * 4 + 1);
+	uint8_t *data = bytes.bytes;
+	char *p = res;
+	size_t i;
+
+	for (i = 0; i < bytes.len; i++) {
+		if (data[i] >= 32 && data[i] != 127) {
+			*p++ = data[i];
+		} else {
+			*p++ = '\\';
+			*p++ = '0' + (data[i] >> 6);
+			*p++ = '0' + (data[i] >> 3 & 0x7);
+			*p++ = '0' + (data[i] & 0x7);
+		}
+	}
+
+	*p = 0;
+	return res;
+}
+
 void amqp_queue_dtor(void *object TSRMLS_DC)
 {
 	amqp_queue_object *ob = (amqp_queue_object*)object;
@@ -157,6 +180,7 @@ PHP_METHOD(amqp_queue_class, declare)
 		zend_throw_exception(amqp_queue_exception_class_entry, "Could not declare queue. No connection available.", 0 TSRMLS_CC);
 		return;
 	}
+	
 	if (ZEND_NUM_ARGS() == 1) {
 		parms = AMQP_AUTODELETE; /* default settings */
 	}
@@ -196,6 +220,13 @@ PHP_METHOD(amqp_queue_class, declare)
 	}
 
 	r = (amqp_queue_declare_ok_t *) res.reply.decoded;
+
+	/* Pull the name out of the request so that we can store it */
+	strncpy(ctx->name, stringify_bytes(amqp_bytes_malloc_dup(r->queue)), 254);
+	/* Null terminate */
+	ctx->name[254] = 0;
+	/* Set the name len as well */
+	ctx->name_len = strlen(ctx->name);
 
 	RETURN_LONG(r->message_count);
 }
@@ -1221,6 +1252,28 @@ PHP_METHOD(amqp_queue_class, ack)
 	}
 
 	RETURN_TRUE;
+}
+/* }}} */
+
+/* {{{ proto amqp_queue::getName()
+Get the queue name */
+PHP_METHOD(amqp_queue_class, getName)
+{
+	zval *id;
+	amqp_queue_object *ctx;
+	
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_queue_class_entry) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	ctx = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
+
+	// Check if there is a name to be had:
+	if (ctx->name_len) {
+		RETURN_STRING(ctx->name, 1);
+	} else {
+		RETURN_FALSE;
+	}
 }
 /* }}} */
 
