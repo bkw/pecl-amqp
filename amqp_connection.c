@@ -109,15 +109,17 @@ void php_amqp_disconnect(amqp_connection_object *amqp_connection)
 
 	/* Start ignoring SIGPIPE */
 	old_handler = signal(SIGPIPE, SIG_IGN);
-
+	
 	if (amqp_connection->is_channel_connected == '\1') {
 		amqp_channel_close(amqp_connection->conn, AMQP_CHANNEL, AMQP_REPLY_SUCCESS);
 	}
 	amqp_connection->is_channel_connected = '\0';
 
 	if (amqp_connection->conn && amqp_connection->is_connected == '\1') {
+		amqp_connection_close(amqp_connection->conn, AMQP_REPLY_SUCCESS);
 		amqp_destroy_connection(amqp_connection->conn);
 	}
+	
 	amqp_connection->is_connected = '\0';
 	if (amqp_connection->fd) {
 		close(amqp_connection->fd);
