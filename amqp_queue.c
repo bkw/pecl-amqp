@@ -250,8 +250,7 @@ PHP_METHOD(amqp_queue_class, delete)
 	amqp_queue_delete_ok_t *r;
 	amqp_queue_delete_t s;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id,
-	amqp_queue_class_entry, &name, &name_len, &parms) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|s", &id, amqp_queue_class_entry, &name, &name_len, &parms) == FAILURE) {
 		RETURN_FALSE;
 	}
 
