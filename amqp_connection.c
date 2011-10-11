@@ -365,8 +365,7 @@ PHP_METHOD(amqp_connection_class, setLogin)
 
 	/* @TODO: use macro when one is created for constructor */
 	/* Get the login from the method params */
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id,
-	amqp_connection_class_entry, &login, &login_len) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id, amqp_connection_class_entry, &login, &login_len) == FAILURE) {
 		RETURN_FALSE;
 	}
 

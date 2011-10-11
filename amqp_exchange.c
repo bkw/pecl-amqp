@@ -178,10 +178,10 @@ PHP_METHOD(amqp_exchange_class, declare)
 		amqp_name.bytes = ctx->name;
 	}
 	
-	AMQP_NULLARGS
-	AMQP_PASSIVE_D
-	AMQP_DURABLE_D
-	AMQP_AUTODELETE_D
+	amqp_table_t arguments = EMPTY_ARGUMENTS;
+	
+	short passive = IS_PASSIVE(parms);
+	short durable = IS_DURABLE(parms);
 	
 	amqp_exchange_declare(ctx_cnn->conn, AMQP_CHANNEL, amqp_cstring_bytes(amqp_name.bytes), amqp_cstring_bytes(type), passive, durable, arguments);
 	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(ctx_cnn->conn); 
@@ -443,48 +443,48 @@ PHP_METHOD(amqp_exchange_class, publish)
 
 	zdata = NULL;
 	if (iniArr && SUCCESS == zend_hash_find(HASH_OF (iniArr), "headers", sizeof("headers"), (void*)&zdata)) {
-                HashTable *headers;
-                HashPosition pos;
+		HashTable *headers;
+		HashPosition pos;
 
-                convert_to_array(*zdata);
-                headers = HASH_OF(*zdata);
-                zend_hash_internal_pointer_reset_ex(headers, &pos);
+		convert_to_array(*zdata);
+		headers = HASH_OF(*zdata);
+		zend_hash_internal_pointer_reset_ex(headers, &pos);
 
-                props._flags += AMQP_BASIC_HEADERS_FLAG;
-                props.headers.entries = emalloc(sizeof(struct amqp_table_entry_t_) * zend_hash_num_elements(headers));
-                props.headers.num_entries = 0;
+		props._flags += AMQP_BASIC_HEADERS_FLAG;
+		props.headers.entries = emalloc(sizeof(struct amqp_table_entry_t_) * zend_hash_num_elements(headers));
+		props.headers.num_entries = 0;
 
-                while(zend_hash_get_current_data_ex(headers, (void **)&zdata, &pos) == SUCCESS) {
-                    char  *string_key;
-                    uint   string_key_len;
-                    int    type;
-                    ulong  num_key;
+		while (zend_hash_get_current_data_ex(headers, (void **)&zdata, &pos) == SUCCESS) {
+			char  *string_key;
+			uint   string_key_len;
+			int    type;
+			ulong  num_key;
 
-                    type = zend_hash_get_current_key_ex(headers, &string_key, &string_key_len, &num_key, 0, &pos);
+			type = zend_hash_get_current_key_ex(headers, &string_key, &string_key_len, &num_key, 0, &pos);
 
-                    props.headers.entries[props.headers.num_entries].key.bytes = string_key;
-                    props.headers.entries[props.headers.num_entries].key.len = string_key_len-1;
+			props.headers.entries[props.headers.num_entries].key.bytes = string_key;
+			props.headers.entries[props.headers.num_entries].key.len = string_key_len-1;
 
-                    if (Z_TYPE_P(*zdata) == IS_STRING) {
-                        convert_to_string(*zdata);
-                        props.headers.entries[props.headers.num_entries].value.kind = AMQP_FIELD_KIND_UTF8;
-                        props.headers.entries[props.headers.num_entries].value.value.bytes.bytes = Z_STRVAL_P(*zdata);
-                        props.headers.entries[props.headers.num_entries].value.value.bytes.len = Z_STRLEN_P(*zdata);
-                        props.headers.num_entries++;
-                    } else if (Z_TYPE_P(*zdata) == IS_LONG) {
-                        convert_to_long(*zdata);
-                        props.headers.entries[props.headers.num_entries].value.kind = AMQP_FIELD_KIND_I32;
-                        props.headers.entries[props.headers.num_entries].value.value.i32 = Z_LVAL_P(*zdata);
-                        props.headers.num_entries++;
-                    } else if (Z_TYPE_P(*zdata) == IS_DOUBLE) {
-                        convert_to_double(*zdata);
-                        props.headers.entries[props.headers.num_entries].value.kind = AMQP_FIELD_KIND_F32;
-                        props.headers.entries[props.headers.num_entries].value.value.f32 = (double)Z_DVAL_P(*zdata);
-                        props.headers.num_entries++;
-                    }
+			if (Z_TYPE_P(*zdata) == IS_STRING) {
+				convert_to_string(*zdata);
+				props.headers.entries[props.headers.num_entries].value.kind = AMQP_FIELD_KIND_UTF8;
+				props.headers.entries[props.headers.num_entries].value.value.bytes.bytes = Z_STRVAL_P(*zdata);
+				props.headers.entries[props.headers.num_entries].value.value.bytes.len = Z_STRLEN_P(*zdata);
+				props.headers.num_entries++;
+			} else if (Z_TYPE_P(*zdata) == IS_LONG) {
+				convert_to_long(*zdata);
+				props.headers.entries[props.headers.num_entries].value.kind = AMQP_FIELD_KIND_I32;
+				props.headers.entries[props.headers.num_entries].value.value.i32 = Z_LVAL_P(*zdata);
+				props.headers.num_entries++;
+			} else if (Z_TYPE_P(*zdata) == IS_DOUBLE) {
+				convert_to_double(*zdata);
+				props.headers.entries[props.headers.num_entries].value.kind = AMQP_FIELD_KIND_F32;
+				props.headers.entries[props.headers.num_entries].value.value.f32 = (double)Z_DVAL_P(*zdata);
+				props.headers.num_entries++;
+			}
 
-                    zend_hash_move_forward_ex(headers, &pos);
-                }
+			zend_hash_move_forward_ex(headers, &pos);
+		}
 
         } else {
             props.headers.entries = 0;
@@ -520,8 +520,9 @@ PHP_METHOD(amqp_exchange_class, publish)
 		(amqp_bytes_t) {msg_len, msg }
 	);
 
-        if (props.headers.entries)
-            efree(props.headers.entries);
+	if (props.headers.entries) {
+		efree(props.headers.entries);
+	}
 	
 	/* End ignoring of SIGPIPEs */
 	signal(SIGPIPE, old_handler);

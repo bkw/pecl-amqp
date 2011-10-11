@@ -167,11 +167,11 @@ extern zend_class_entry *amqp_exception_class_entry,
 #define AMQP_CHANNEL			1	   /* default channel number */
 #define AMQP_HEARTBEAT			0	   /* heartbeat */
 
-#define AMQP_NULLARGS			amqp_table_t arguments = {0, NULL};
-#define AMQP_PASSIVE_D			short passive = (AMQP_PASSIVE & parms) ? 1 : 0;
-#define AMQP_DURABLE_D			short durable = (AMQP_DURABLE & parms) ? 1 : 0;
-#define AMQP_AUTODELETE_D		short auto_delete = (AMQP_AUTODELETE & parms) ? 1 : 0;
-#define AMQP_EXCLUSIVE_D		short exclusive = (AMQP_EXCLUSIVE & parms) ? 1 : 0;
+#define EMPTY_ARGUMENTS			{0, NULL};
+#define IS_PASSIVE(bitmask)		(AMQP_PASSIVE & bitmask) ? 1 : 0;
+#define IS_DURABLE(bitmask)		(AMQP_DURABLE & bitmask) ? 1 : 0;
+#define IS_EXCLUSIVE(bitmask)	(AMQP_EXCLUSIVE & bitmask) ? 1 : 0;
+#define IS_AUTODELETE(bitmask)	(AMQP_AUTODELETE & bitmask) ? 1 : 0;
 
 #define AMQP_SET_NAME(ctx, str) (ctx)->name_len = strlen(str) >= sizeof((ctx)->name) ? sizeof((ctx)->name) - 1 : strlen(str); \
 			 strncpy((ctx)->name, name, (ctx)->name_len); \
@@ -210,6 +210,7 @@ typedef struct _amqp_queue_object {
 	int durable;
 	int exclusive;
 	int auto_delete; /* end @TODO */
+	amqp_table_t arguments;
 } amqp_queue_object;
 
 
