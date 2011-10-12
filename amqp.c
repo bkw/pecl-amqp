@@ -107,7 +107,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_setName, ZEND_SEND_BY_VAL, ZEND_
 	ZEND_ARG_INFO(0, queue_name)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_getSuperParameters, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_getParameters, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_setParameters, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
@@ -219,7 +219,7 @@ zend_function_entry amqp_queue_class_functions[] = {
 	PHP_ME(amqp_queue_class, getName,		arginfo_amqp_queue_class_getName,		ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_queue_class, setName,		arginfo_amqp_queue_class_setName,		ZEND_ACC_PUBLIC)
 	
-	PHP_ME(amqp_queue_class, getSuperParameters,	arginfo_amqp_queue_class_getSuperParameters,	ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_queue_class, getParameters,	arginfo_amqp_queue_class_getParameters,	ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_queue_class, setParameters,	arginfo_amqp_queue_class_setParameters,	ZEND_ACC_PUBLIC)
 
 	PHP_ME(amqp_queue_class, getArgument,	arginfo_amqp_queue_class_getArgument,	ZEND_ACC_PUBLIC)
