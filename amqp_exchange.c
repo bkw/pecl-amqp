@@ -342,7 +342,10 @@ PHP_METHOD(amqp_exchange_class, declare)
 	amqp_table_t *arguments = convert_zval_to_arguments(exchange->arguments);
 	
 	amqp_exchange_declare(exchange_cnn->conn, AMQP_CHANNEL, amqp_cstring_bytes(exchange->name), amqp_cstring_bytes(exchange->type), exchange->passive, exchange->durable, *arguments);
+
 	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(exchange_cnn->conn); 
+
+	AMQP_EFREE_ARGUMENTS(arguments);
 	
 	/* handle any errors that occured outside of signals */
 	if (res.reply_type != AMQP_RESPONSE_NORMAL) {

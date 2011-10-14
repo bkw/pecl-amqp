@@ -44,30 +44,6 @@
 
 #include "php_amqp.h"
 
-
-static char *stringify_bytes(amqp_bytes_t bytes)
-{
-/* We will need up to 4 chars per byte, plus the terminating 0 */
-	char *res = malloc(bytes.len * 4 + 1);
-	uint8_t *data = bytes.bytes;
-	char *p = res;
-	size_t i;
-
-	for (i = 0; i < bytes.len; i++) {
-		if (data[i] >= 32 && data[i] != 127) {
-			*p++ = data[i];
-		} else {
-			*p++ = '\\';
-			*p++ = '0' + (data[i] >> 6);
-			*p++ = '0' + (data[i] >> 3 & 0x7);
-			*p++ = '0' + (data[i] & 0x7);
-		}
-	}
-
-	*p = 0;
-	return res;
-}
-
 void amqp_queue_dtor(void *object TSRMLS_DC)
 {
 	amqp_queue_object *queue = (amqp_queue_object*)object;
@@ -305,7 +281,7 @@ PHP_METHOD(amqp_queue_class, getArgument)
 Get the queue arguments */
 PHP_METHOD(amqp_queue_class, getArguments)
 {
-	zval *id, *arguments;
+	zval *id;
 	amqp_queue_object *queue;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_queue_class_entry) == FAILURE) {
@@ -326,7 +302,7 @@ PHP_METHOD(amqp_queue_class, getArguments)
 Overwrite all queue arguments with given args */
 PHP_METHOD(amqp_queue_class, setArguments)
 {
-	zval *id, *zvalArguments, **value, **data;
+	zval *id, *zvalArguments;
 	amqp_queue_object *queue;
 		
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oa", &id, amqp_queue_class_entry, &zvalArguments) == FAILURE) {
@@ -395,7 +371,6 @@ PHP_METHOD(amqp_queue_class, declare)
 	zval *id;
 	amqp_queue_object *queue;
 	amqp_connection_object *queue_cnn;
-	amqp_queue_declare_t s;
 
 	amqp_rpc_reply_t res;
 
@@ -427,7 +402,7 @@ PHP_METHOD(amqp_queue_class, declare)
 	
 	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(queue_cnn->conn); 
 	
-	efree(arguments);
+	AMQP_EFREE_ARGUMENTS(arguments);
 	
 	/* handle any errors that occured outside of signals */
 	if (res.reply_type != AMQP_RESPONSE_NORMAL) {
@@ -451,19 +426,14 @@ PHP_METHOD(amqp_queue_class, bind)
 {
 	zval *id;
 	amqp_queue_object *queue;
-	amqp_connection_object *queue_cnn;
-	char *name;
-	int name_len;
 	char *exchange_name;
 	int exchange_name_len;
 	char *keyname;
 	int keyname_len;
 
 	amqp_rpc_reply_t res;
-	amqp_rpc_reply_t result;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss", &id,
-	amqp_queue_class_entry, &exchange_name, &exchange_name_len, &keyname, &keyname_len) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss", &id, amqp_queue_class_entry, &exchange_name, &exchange_name_len, &keyname, &keyname_len) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -521,15 +491,10 @@ PHP_METHOD(amqp_queue_class, get)
 {
 	zval *id;
 	amqp_queue_object *queue;
-	char *type=NULL;
-	int type_len;
-	amqp_rpc_reply_t res;
 
 	char str[256];
 	char **pstr = (char **)&str;
 	long parms = AMQP_NOACK;
-
-	zval content;
 
 	amqp_basic_get_ok_t *get_ok;
 	amqp_channel_close_t *err;
@@ -562,7 +527,7 @@ PHP_METHOD(amqp_queue_class, get)
 	s.queue.bytes = queue->name;
 	s.no_ack = (AMQP_NOACK & parms) ? 1 : 0;
 
-	int status = amqp_send_method(cnn->conn,
+	amqp_send_method(cnn->conn,
 		AMQP_CHANNEL,
 		AMQP_BASIC_GET_METHOD,
 		&s
@@ -785,7 +750,6 @@ PHP_METHOD(amqp_queue_class, consume)
 {
 	zval *id;
 	amqp_queue_object *queue;
-	int queue_len;
 	amqp_rpc_reply_t res;
 	
 	int ack;
@@ -795,9 +759,7 @@ PHP_METHOD(amqp_queue_class, consume)
 	zval** zdata;
 
 	char *pbuf;
-	long parms = 0;
 
-	zval content;
 	int buf_max = FRAME_MAX;
 
 	/* Parse out the method parameters */
@@ -861,9 +823,6 @@ PHP_METHOD(amqp_queue_class, consume)
 	memcpy(queue->consumer_tag, r->consumer_tag.bytes, r->consumer_tag.len);
 	queue->consumer_tag_len = r->consumer_tag.len;
 
-	int received = 0;
-	int previous_received = 0;
-
 	amqp_frame_t frame;
 	int result;
 	size_t body_received;
@@ -872,8 +831,6 @@ PHP_METHOD(amqp_queue_class, consume)
 	array_init(return_value);
 	char *buf = NULL;
 	
-	amqp_boolean_t messages_left;
-
 	for (i = 0; i < max_consume; i++) {
 
 		amqp_maybe_release_buffers(cnn->conn);
@@ -1147,7 +1104,6 @@ PHP_METHOD(amqp_queue_class, ack)
 {
 	zval *id;
 	amqp_queue_object *queue;
-	amqp_connection_object *queue_cnn;
 	long deliveryTag = 0;
 	long parms = 0;
 
@@ -1193,13 +1149,11 @@ PHP_METHOD(amqp_queue_class, purge)
 {
 	zval *id;
 	amqp_queue_object *queue;
-	amqp_connection_object *queue_cnn;
 	char *name;
 	int name_len=0;
 
 	amqp_rpc_reply_t res;
 	amqp_rpc_reply_t result;
-	amqp_queue_purge_ok_t *r;
 	amqp_queue_purge_t s;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id,
@@ -1260,7 +1214,6 @@ PHP_METHOD(amqp_queue_class, cancel)
 {
 	zval *id;
 	amqp_queue_object *queue;
-	amqp_connection_object *queue_cnn;
 	char *consumer_tag = NULL;
 	int consumer_tag_len=0;
 	amqp_rpc_reply_t res;
@@ -1322,9 +1275,6 @@ PHP_METHOD(amqp_queue_class, unbind)
 {
 	zval *id;
 	amqp_queue_object *queue;
-	amqp_connection_object *queue_cnn;
-	char *name;
-	int name_len;
 	char *exchange_name;
 	int exchange_name_len;
 	char *keyname;
@@ -1387,14 +1337,12 @@ PHP_METHOD(amqp_queue_class, delete)
 {
 	zval *id;
 	amqp_queue_object *queue;
-	amqp_connection_object *queue_cnn;
 	char *name;
 	int name_len = 0;
 	long parms = 0;
 
 	amqp_rpc_reply_t res;
 	amqp_rpc_reply_t result;
-	amqp_queue_delete_ok_t *r;
 	amqp_queue_delete_t s;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|s", &id, amqp_queue_class_entry, &name, &name_len, &parms) == FAILURE) {

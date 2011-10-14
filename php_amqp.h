@@ -103,6 +103,7 @@ static zend_always_inline zend_bool zval_set_isref_to_p(zval* pz, zend_bool isre
 #endif
 
 
+#include "amqp.h"
 
 extern zend_module_entry amqp_module_entry;
 #define phpext_amqp_ptr &amqp_module_entry
@@ -143,6 +144,7 @@ PHP_MINFO_FUNCTION(amqp);
 
 void amqp_error(amqp_rpc_reply_t x, char ** pstr);
 amqp_table_t *convert_zval_to_arguments(zval *zvalArguments);
+char *stringify_bytes(amqp_bytes_t bytes);
 
 /* True global resources - no need for thread safety here */
 extern zend_class_entry *amqp_connection_class_entry;
@@ -181,6 +183,10 @@ extern zend_class_entry *amqp_exception_class_entry,
 #define AMQP_SET_TYPE(object, str) (object)->type_len = strlen(str) >= sizeof((object)->type) ? sizeof((object)->type) - 1 : strlen(str); \
 			 strncpy((object)->type, type, (object)->type_len); \
 				 (object)->type[(object)->type_len] = '\0';
+
+#define AMQP_EFREE_ARGUMENTS(object) if (object->entries) \
+											efree(object->entries); \
+									 efree(object);
 
 
 /* If you declare any globals in php_amqp.h uncomment this:
