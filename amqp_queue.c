@@ -438,16 +438,7 @@ PHP_METHOD(amqp_queue_class, declare)
 		zend_throw_exception(amqp_queue_exception_class_entry, *pstr, 0 TSRMLS_CC);
 		return;
 	}
-
-	r = (amqp_queue_declare_ok_t *) res.reply.decoded;
-
-	/* Pull the name out of the request so that we can store it */
-	strncpy(queue->name, stringify_bytes(amqp_bytes_malloc_dup(r->queue)), 254);
-	/* Null terminate */
-	queue->name[254] = 0;
-	/* Set the name len as well */
-	queue->name_len = strlen(queue->name);
-
+	
 	RETURN_LONG(r->message_count);
 }
 /* }}} */
