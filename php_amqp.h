@@ -132,16 +132,17 @@ extern zend_module_entry amqp_module_entry;
 #define AMQP_IMMEDIATE		2048
 #define AMQP_MULTIPLE	   4096
 
-#define AMQP_EX_TYPE_DIRECT	 "direct"
-#define AMQP_EX_TYPE_FANOUT	 "fanout"
-#define AMQP_EX_TYPE_TOPIC	  "topic"
-#define AMQP_EX_TYPE_HEADER	 "header"
+#define AMQP_EX_TYPE_DIRECT		"direct"
+#define AMQP_EX_TYPE_FANOUT		"fanout"
+#define AMQP_EX_TYPE_TOPIC		"topic"
+#define AMQP_EX_TYPE_HEADER		"header"
 
 PHP_MINIT_FUNCTION(amqp);
 PHP_MSHUTDOWN_FUNCTION(amqp);
 PHP_MINFO_FUNCTION(amqp);
 
 void amqp_error(amqp_rpc_reply_t x, char ** pstr);
+amqp_table_t *convert_zval_to_arguments(zval *zvalArguments);
 
 /* True global resources - no need for thread safety here */
 extern zend_class_entry *amqp_connection_class_entry;
@@ -173,9 +174,14 @@ extern zend_class_entry *amqp_exception_class_entry,
 #define IS_EXCLUSIVE(bitmask)	(AMQP_EXCLUSIVE & bitmask) ? 1 : 0;
 #define IS_AUTODELETE(bitmask)	(AMQP_AUTODELETE & bitmask) ? 1 : 0;
 
-#define AMQP_SET_NAME(ctx, str) (ctx)->name_len = strlen(str) >= sizeof((ctx)->name) ? sizeof((ctx)->name) - 1 : strlen(str); \
-			 strncpy((ctx)->name, name, (ctx)->name_len); \
-				 (ctx)->name[(ctx)->name_len] = '\0';
+#define AMQP_SET_NAME(object, str) (object)->name_len = strlen(str) >= sizeof((object)->name) ? sizeof((object)->name) - 1 : strlen(str); \
+			 strncpy((object)->name, name, (object)->name_len); \
+				 (object)->name[(object)->name_len] = '\0';
+
+#define AMQP_SET_TYPE(object, str) (object)->type_len = strlen(str) >= sizeof((object)->type) ? sizeof((object)->type) - 1 : strlen(str); \
+			 strncpy((object)->type, type, (object)->type_len); \
+				 (object)->type[(object)->type_len] = '\0';
+
 
 /* If you declare any globals in php_amqp.h uncomment this:
  ZEND_DECLARE_MODULE_GLOBALS(amqp)
@@ -210,7 +216,7 @@ typedef struct _amqp_queue_object {
 	int durable;
 	int exclusive;
 	int auto_delete; /* end @TODO */
-	amqp_table_t arguments;
+	zval *arguments;
 } amqp_queue_object;
 
 
@@ -220,6 +226,11 @@ typedef struct _amqp_exchange_object {
 	char is_connected;
 	char name[255];
 	int name_len;
+	char type[255];
+	int type_len;
+	int passive; /* @TODO: consider making these bit fields */
+	int durable; /* end @TODO */
+	zval *arguments;
 } amqp_exchange_object;
 
 #ifdef ZTS

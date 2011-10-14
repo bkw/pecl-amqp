@@ -78,11 +78,8 @@ void amqp_queue_dtor(void *object TSRMLS_DC)
 	}
 	
 	/* Destroy the arguments storage */
-	if (&queue->arguments) {
-		amqp_table_t table = queue->arguments;
-		if (table.num_entries) {
-			efree(table.entries);
-		}
+	if (queue->arguments) {
+		zval_ptr_dtor(&queue->arguments);
 	}
 	
 	/* Destroy this object */
@@ -98,6 +95,10 @@ zend_object_value amqp_queue_ctor(zend_class_entry *ce TSRMLS_DC)
 
 	zend_object_std_init(&queue->zo, ce TSRMLS_CC);
 	
+	// Initialize the arguments array:
+	MAKE_STD_ZVAL(queue->arguments);
+	array_init(queue->arguments);
+	
 	new_value.handle = zend_objects_store_put(
 		queue,
 		(zend_objects_store_dtor_t)zend_objects_destroy_object,
@@ -109,13 +110,14 @@ zend_object_value amqp_queue_ctor(zend_class_entry *ce TSRMLS_DC)
 	return new_value;
 }
 
+
 /* {{{ proto AMQPQueue::__construct(AMQPConnection cnn)
 AMQPQueue constructor
 */
 PHP_METHOD(amqp_queue_class, __construct)
 {
 	zval *id;
-	zval* cnnOb = NULL;
+	zval *cnnOb = NULL;
 	amqp_queue_object *queue;
 	amqp_connection_object *queue_cnn;
 
@@ -154,7 +156,7 @@ PHP_METHOD(amqp_queue_class, __construct)
 /* }}} */
 
 
-/* {{{ proto amqp_queue::getName()
+/* {{{ proto AMQPQueue::getName()
 Get the queue name */
 PHP_METHOD(amqp_queue_class, getName)
 {
@@ -167,7 +169,7 @@ PHP_METHOD(amqp_queue_class, getName)
 
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
 
-	// Check if there is a name to be had:
+	/* Check if there is a name to be had: */
 	if (queue->name_len) {
 		RETURN_STRING(queue->name, 1);
 	} else {
@@ -177,7 +179,7 @@ PHP_METHOD(amqp_queue_class, getName)
 /* }}} */
 
 
-/* {{{ proto amqp_queue::setName(string name)
+/* {{{ proto AMQPQueue::setName(string name)
 Set the queue name */
 PHP_METHOD(amqp_queue_class, setName)
 {
@@ -194,8 +196,8 @@ PHP_METHOD(amqp_queue_class, setName)
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
 	
 	/* Verify that the name is not null and not an empty string */
-	if (name_len < 1 || name_len > 64) {
-		zend_throw_exception(amqp_queue_exception_class_entry, "Invalid queue name given, must be between 1 and 64 characters long.", 0 TSRMLS_CC);
+	if (name_len < 1 || name_len > 255) {
+		zend_throw_exception(amqp_queue_exception_class_entry, "Invalid queue name given, must be between 1 and 255 characters long.", 0 TSRMLS_CC);
 		return;
 	}
 	
@@ -206,13 +208,13 @@ PHP_METHOD(amqp_queue_class, setName)
 
 
 
-/* {{{ proto amqp_queue::getParameters()
+/* {{{ proto AMQPQueue::getFlags()
 Get the queue parameters */
-PHP_METHOD(amqp_queue_class, getParameters)
+PHP_METHOD(amqp_queue_class, getFlags)
 {
 	zval *id;
 	amqp_queue_object *queue;
-	long parameterBitmask = 0;
+	long flagBitmask = 0;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_queue_class_entry) == FAILURE) {
 		RETURN_FALSE;
@@ -221,26 +223,26 @@ PHP_METHOD(amqp_queue_class, getParameters)
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
 
 	/* Set the bitmask based on what is set in the queue */
-	parameterBitmask |= (queue->passive ? AMQP_PASSIVE : 0);
-	parameterBitmask |= (queue->durable ? AMQP_DURABLE : 0);
-	parameterBitmask |= (queue->exclusive ? AMQP_EXCLUSIVE : 0);
-	parameterBitmask |= (queue->auto_delete ? AMQP_AUTODELETE : 0);
+	flagBitmask |= (queue->passive ? AMQP_PASSIVE : 0);
+	flagBitmask |= (queue->durable ? AMQP_DURABLE : 0);
+	flagBitmask |= (queue->exclusive ? AMQP_EXCLUSIVE : 0);
+	flagBitmask |= (queue->auto_delete ? AMQP_AUTODELETE : 0);
 	
-	RETURN_LONG(parameterBitmask);
+	RETURN_LONG(flagBitmask);
 }
 /* }}} */
 
 
-/* {{{ proto amqp_queue::setParameters(mixed bitmask)
+/* {{{ proto AMQPQueue::setFlags(mixed bitmask)
 Set the queue parameters */
-PHP_METHOD(amqp_queue_class, setParameters)
+PHP_METHOD(amqp_queue_class, setFlags)
 {
 	zval *id;
 	amqp_queue_object *queue;
-	zval *zvalParameterBitmask;
-	long parameterBitmask;
+	zval *zvalFlagBitmask;
+	long flagBitmask;
 	
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oz", &id, amqp_queue_class_entry, &zvalParameterBitmask) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oz", &id, amqp_queue_class_entry, &zvalFlagBitmask) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -248,35 +250,36 @@ PHP_METHOD(amqp_queue_class, setParameters)
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
 	
 	/* Parse out the port*/
-	switch (Z_TYPE_P(zvalParameterBitmask)) {
+	switch (Z_TYPE_P(zvalFlagBitmask)) {
 		case IS_DOUBLE:
-			parameterBitmask = (int)Z_DVAL_P(zvalParameterBitmask);
+			flagBitmask = (int)Z_DVAL_P(zvalFlagBitmask);
 			break;
 		case IS_LONG:
-			parameterBitmask = (int)Z_LVAL_P(zvalParameterBitmask);
+			flagBitmask = (int)Z_LVAL_P(zvalFlagBitmask);
 			break;
 		case IS_STRING:
-			convert_to_long(zvalParameterBitmask);
-			parameterBitmask = (int)Z_LVAL_P(zvalParameterBitmask);
+			convert_to_long(zvalFlagBitmask);
+			flagBitmask = (int)Z_LVAL_P(zvalFlagBitmask);
 			break;
 		default:
-			parameterBitmask = 0;
+			flagBitmask = 0;
 	}
 	
 	/* Set the flags based on the bitmask we were given */
-	queue->passive = IS_PASSIVE(parameterBitmask);
-	queue->durable = IS_DURABLE(parameterBitmask);
-	queue->exclusive = IS_EXCLUSIVE(parameterBitmask);
-	queue->auto_delete = IS_AUTODELETE(parameterBitmask);
+	queue->passive = IS_PASSIVE(flagBitmask);
+	queue->durable = IS_DURABLE(flagBitmask);
+	queue->exclusive = IS_EXCLUSIVE(flagBitmask);
+	queue->auto_delete = IS_AUTODELETE(flagBitmask);
 }
 /* }}} */
 
 
-/* {{{ proto amqp_queue::getArgument(string key)
+/* {{{ proto AMQPQueue::getArgument(string key)
 Get the queue argument referenced by key */
 PHP_METHOD(amqp_queue_class, getArgument)
 {
 	zval *id;
+	zval **tmp;
 	amqp_queue_object *queue;
 	char *key;
 	int key_len;
@@ -287,20 +290,23 @@ PHP_METHOD(amqp_queue_class, getArgument)
 
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
 	
-	RETURN_NULL();
+	if (zend_hash_find(Z_ARRVAL_P(queue->arguments), key, key_len + 1, (void **)&tmp) == FAILURE) {
+		RETURN_FALSE;
+	}
+	
+	*return_value = **tmp;
+	zval_copy_ctor(return_value);
+	
+	Z_ADDREF_P(return_value);
 }
 /* }}} */
 
-
-
-/* {{{ proto amqp_queue::getArguments
+/* {{{ proto AMQPQueue::getArguments
 Get the queue arguments */
 PHP_METHOD(amqp_queue_class, getArguments)
 {
 	zval *id, *arguments;
 	amqp_queue_object *queue;
-	long index = 0;
-	int i;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_queue_class_entry) == FAILURE) {
 		RETURN_FALSE;
@@ -308,78 +314,21 @@ PHP_METHOD(amqp_queue_class, getArguments)
 
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
 	
-	MAKE_STD_ZVAL(arguments);
-	array_init(arguments);
-	for (i = 0; i < queue->arguments.num_entries; i++) {
-		amqp_table_entry_t *entry = &(queue->arguments.entries[i]);
-
-		switch (entry->value.kind) {
-			case AMQP_FIELD_KIND_BOOLEAN:
-				add_assoc_bool_ex(arguments, entry->key.bytes, entry->key.len + 1, entry->value.value.boolean);
-				break;
-			case AMQP_FIELD_KIND_I8:
-				add_assoc_long_ex(arguments, entry->key.bytes, entry->key.len + 1, entry->value.value.i8);
-				break;
-			case AMQP_FIELD_KIND_U8:
-				add_assoc_long_ex(arguments, entry->key.bytes, entry->key.len + 1, entry->value.value.u8);
-				break;
-			case AMQP_FIELD_KIND_I16:
-				add_assoc_long_ex(arguments, entry->key.bytes, entry->key.len + 1, entry->value.value.i16);
-				break;
-			case AMQP_FIELD_KIND_U16:
-				add_assoc_long_ex(arguments, entry->key.bytes, entry->key.len + 1, entry->value.value.u16);
-				break;
-			case AMQP_FIELD_KIND_I32:
-				add_assoc_long_ex(arguments, entry->key.bytes, entry->key.len + 1, entry->value.value.i32);
-				break;
-			case AMQP_FIELD_KIND_U32:
-				add_assoc_long_ex(arguments, entry->key.bytes, entry->key.len + 1, entry->value.value.u32);
-				break;
-			case AMQP_FIELD_KIND_I64:
-				printf("Setting %s to %d\n", stringify_bytes(entry->key), entry->value.value.i64);
-				add_assoc_long_ex(arguments, entry->key.bytes, entry->key.len + 1, entry->value.value.i64);
-				break;
-			case AMQP_FIELD_KIND_U64:
-				add_assoc_long_ex(arguments, entry->key.bytes, entry->key.len + 1, entry->value.value.u64);
-				break;
-			case AMQP_FIELD_KIND_F32:
-				add_assoc_double_ex(arguments, entry->key.bytes, entry->key.len + 1, entry->value.value.f32);
-				break;
-			case AMQP_FIELD_KIND_F64:
-				add_assoc_double_ex(arguments, entry->key.bytes, entry->key.len + 1, entry->value.value.f64);
-				break;
-			case AMQP_FIELD_KIND_UTF8:
-				add_assoc_stringl_ex(arguments, entry->key.bytes, entry->key.len + 1, entry->value.value.bytes.bytes, entry->value.value.bytes.len, 1);
-				break;
-			case AMQP_FIELD_KIND_BYTES:
-				add_assoc_stringl_ex(arguments, entry->key.bytes, entry->key.len + 1, entry->value.value.bytes.bytes, entry->value.value.bytes.len, 1);
-				break;
-
-			case AMQP_FIELD_KIND_ARRAY:
-			case AMQP_FIELD_KIND_TIMESTAMP:
-			case AMQP_FIELD_KIND_TABLE:
-			case AMQP_FIELD_KIND_VOID:
-			case AMQP_FIELD_KIND_DECIMAL:
-			break;
-		}
-	}
-
-	*return_value = *arguments;
-	
+	*return_value = *queue->arguments;
 	zval_copy_ctor(return_value);
+
+	/* Increment the ref count */
+	Z_ADDREF_P(queue->arguments);
 }
 /* }}} */
 
-
-/* {{{ proto amqp_queue::setArguments(array args)
+/* {{{ proto AMQPQueue::setArguments(array args)
 Overwrite all queue arguments with given args */
 PHP_METHOD(amqp_queue_class, setArguments)
 {
 	zval *id, *zvalArguments, **value, **data;
 	amqp_queue_object *queue;
-	HashTable *argumentHash;
-	HashPosition pos;
-	
+		
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oa", &id, amqp_queue_class_entry, &zvalArguments) == FAILURE) {
 		RETURN_FALSE;
 	}
@@ -387,99 +336,52 @@ PHP_METHOD(amqp_queue_class, setArguments)
 	/* Pull the queue off the object store */
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
 	
-	/* Pull the array out into something we can parse */
-	argumentHash = Z_ARRVAL_P(zvalArguments);
-
-	/* Clean up any old arguments: */
-	if (&queue->arguments) {
-		amqp_table_t table = queue->arguments;
-		if (table.num_entries) {
-			efree(table.entries);
-		}
+	/* Destroy the arguments storage */
+	if (queue->arguments) {
+		zval_ptr_dtor(&queue->arguments);
 	}
 	
-	/* In setArguments, we are overwriting all the existing values */
-	amqp_table_t arguments = EMPTY_ARGUMENTS;
+	queue->arguments = zvalArguments;
 	
-	/* Allocate all the memory necessary for storing the arguments */
-	arguments.entries = (amqp_table_entry_t *)emalloc(zend_hash_num_elements(argumentHash) * sizeof(amqp_table_entry_t));
-	arguments.num_entries = 0;
+	/* Increment the ref count */
+	Z_ADDREF_P(queue->arguments);
 
-	for (zend_hash_internal_pointer_reset_ex(argumentHash, &pos);
-		zend_hash_get_current_data_ex(argumentHash, (void**) &data, &pos) == SUCCESS;
-		zend_hash_move_forward_ex(argumentHash, &pos)) {
-		
-		/* Make a copy of the value: */
-		zval value;
-		value = **data;
-		zval_copy_ctor(&value);
-		
-		/* Now pull the key */
-		char *key;
-		int key_len;
-		long index;
-		
-		if (zend_hash_get_current_key_ex(argumentHash, &key, &key_len, &index, 0, &pos) != HASH_KEY_IS_STRING) {
-			/* Skip things that are not strings */
-			continue;
-		}
-		
-		/* Build the value */
-		amqp_table_entry_t *table = &arguments.entries[arguments.num_entries++];
-		amqp_field_value_t *field = &table->value;
-		table->key = amqp_cstring_bytes(estrndup(key, key_len));
-		
-		switch (Z_TYPE_P(&value)) {
-			case IS_BOOL:
-				field->kind = AMQP_FIELD_KIND_BOOLEAN;
-				field->value.boolean = (amqp_boolean_t)Z_LVAL_P(&value);
-				break;
-			case IS_DOUBLE:
-				field->kind = AMQP_FIELD_KIND_F64;
-				field->value.f64 = Z_DVAL_P(&value);
-				break;
-			case IS_LONG:
-				field->kind = AMQP_FIELD_KIND_I64;
-				field->value.i64 = Z_LVAL_P(&value);
-				break;
-			case IS_STRING:
-				field->kind = AMQP_FIELD_KIND_BYTES;
-				field->value.bytes = amqp_cstring_bytes(estrndup(Z_STRVAL_P(&value), Z_STRLEN_P(&value)));
-				break;
-			default:
-				continue;
-		}
-				
-		/* Clean up the zval */
-		zval_dtor(&value);
-	}
-
-	/* Store the arguments in the queue for later */
-	queue->arguments = arguments;
-	
 	RETURN_TRUE;
 }
 /* }}} */
 
 
-/* {{{ proto amqp_queue::setArgument(key, value)
+/* {{{ proto AMQPQueue::setArgument(key, value)
 Get the queue name */
 PHP_METHOD(amqp_queue_class, setArgument)
 {
-	zval *id;
+	zval *id, *value;
 	amqp_queue_object *queue;
-	char *newKey, *newValue;
-	int key_len, value_len;
+	char *key;
+	int key_len;
 	
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss", &id, amqp_queue_class_entry, &newKey, key_len, &newValue, value_len) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Osz", &id, amqp_queue_class_entry, &key, &key_len, &value) == FAILURE) {
 		RETURN_FALSE;
 	}
 
 	/* Pull the queue off the object store */
-	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);	
+	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
 
+	switch (Z_TYPE_P(value)) {
+		case IS_NULL:
+			zend_hash_del_key_or_index(Z_ARRVAL_P(queue->arguments), key, key_len + 1, 0, HASH_DEL_KEY);
+			break;
+		case IS_BOOL:
+		case IS_LONG:
+		case IS_DOUBLE:
+		case IS_STRING:
+			add_assoc_zval(queue->arguments, key, value);
+			Z_ADDREF_P(value);
+			break;
+		default:
+			zend_throw_exception(amqp_queue_exception_class_entry, "The value parameter must be of type NULL, int, double or string.", 0 TSRMLS_CC);
+	}
 	
-
 	RETURN_TRUE;
 }
 /* }}} */
@@ -493,15 +395,12 @@ PHP_METHOD(amqp_queue_class, declare)
 	zval *id;
 	amqp_queue_object *queue;
 	amqp_connection_object *queue_cnn;
-	char *name;
-	int name_len = 0;
-	long parms = 0;
 	amqp_queue_declare_t s;
 
 	amqp_rpc_reply_t res;
 
 	amqp_queue_declare_ok_t *r;
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_queue_class_entry, &name, &name_len, &parms) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_queue_class_entry) == FAILURE) {
 		zend_throw_exception(zend_exception_get_default(TSRMLS_C), "Error parsing parameters." ,0 TSRMLS_CC);
 		RETURN_FALSE;
 	}
@@ -514,13 +413,21 @@ PHP_METHOD(amqp_queue_class, declare)
 		return;
 	}
 
-	amqp_bytes_t amqp_name = (amqp_bytes_t) {queue->name_len, queue->name};
-	amqp_table_t arguments = EMPTY_ARGUMENTS;
-		
+	/* Make sure we have a queue name: */
+	if (queue->name_len < 1) {
+		zend_throw_exception(amqp_queue_exception_class_entry, "Could not declare queue. Queues must have names.", 0 TSRMLS_CC);
+		return;
+	}
+
 	queue_cnn = (amqp_connection_object *) zend_object_store_get_object(queue->cnn TSRMLS_CC);
 	
-	amqp_queue_declare(queue_cnn->conn, AMQP_CHANNEL, amqp_name, queue->passive, queue->durable, queue->exclusive, queue->auto_delete, arguments);
+	amqp_table_t *arguments = convert_zval_to_arguments(queue->arguments);
+
+	amqp_queue_declare(queue_cnn->conn, AMQP_CHANNEL, amqp_cstring_bytes(queue->name), queue->passive, queue->durable, queue->exclusive, queue->auto_delete, *arguments);
+	
 	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(queue_cnn->conn); 
+	
+	efree(arguments);
 	
 	/* handle any errors that occured outside of signals */
 	if (res.reply_type != AMQP_RESPONSE_NORMAL) {

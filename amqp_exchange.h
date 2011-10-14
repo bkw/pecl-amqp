@@ -29,6 +29,16 @@ void amqp_exchange_dtor(void *object TSRMLS_DC);
 zend_object_value amqp_exchange_ctor(zend_class_entry *ce TSRMLS_DC);
   
 PHP_METHOD(amqp_exchange_class, __construct);
+
+PHP_METHOD(amqp_exchange_class, getName);
+PHP_METHOD(amqp_exchange_class, setName);
+
+PHP_METHOD(amqp_exchange_class, getType);
+PHP_METHOD(amqp_exchange_class, setType);
+
+PHP_METHOD(amqp_exchange_class, getFlags);
+PHP_METHOD(amqp_exchange_class, setFlags);
+
 PHP_METHOD(amqp_exchange_class, declare);
 PHP_METHOD(amqp_exchange_class, delete);
 PHP_METHOD(amqp_exchange_class, bind);

@@ -33,8 +33,8 @@ PHP_METHOD(amqp_queue_class, __construct);
 PHP_METHOD(amqp_queue_class, getName);
 PHP_METHOD(amqp_queue_class, setName);
 
-PHP_METHOD(amqp_queue_class, getParameters);
-PHP_METHOD(amqp_queue_class, setParameters);
+PHP_METHOD(amqp_queue_class, getFlags);
+PHP_METHOD(amqp_queue_class, setFlags);
 
 PHP_METHOD(amqp_queue_class, getArgument);
 PHP_METHOD(amqp_queue_class, getArguments);

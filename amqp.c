@@ -55,7 +55,7 @@ zend_class_entry *amqp_exception_class_entry,
 				 *amqp_exchange_exception_class_entry,
 				 *amqp_queue_exception_class_entry;
 
-/* The last parameter of ZEND_BEGIN_ARG_INFO_EX indicates how many of the method parameters are required. */
+/* The last parameter of ZEND_BEGIN_ARG_INFO_EX indicates how many of the method flags are required. */
 
 /* amqp_connection_class ARG_INFO definition */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_connection_class__construct, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
@@ -103,15 +103,15 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_getName, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_setName, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_setName, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
 	ZEND_ARG_INFO(0, queue_name)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_getParameters, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_getFlags, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_setParameters, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
-	ZEND_ARG_INFO(0, parameters)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_setFlags, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
+	ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_getArgument, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
@@ -174,10 +174,28 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class__construct, ZEND_SEND_BY_VAL,
 	ZEND_ARG_INFO(0, exchange_name)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_declare, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_getName, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_setName, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
 	ZEND_ARG_INFO(0, exchange_name)
-	ZEND_ARG_INFO(0, exchange_type)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_getFlags, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_setFlags, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
 	ZEND_ARG_INFO(0, flags)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_getType, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_setType, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
+	ZEND_ARG_INFO(0, exchange_type)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_declare, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_bind, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
@@ -215,42 +233,51 @@ zend_function_entry amqp_connection_class_functions[] = {
 };
 
 zend_function_entry amqp_queue_class_functions[] = {
-	PHP_ME(amqp_queue_class, __construct,	arginfo_amqp_queue_class__construct,	ZEND_ACC_PUBLIC)
-	PHP_ME(amqp_queue_class, getName,		arginfo_amqp_queue_class_getName,		ZEND_ACC_PUBLIC)
-	PHP_ME(amqp_queue_class, setName,		arginfo_amqp_queue_class_setName,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_queue_class, __construct,		arginfo_amqp_queue_class__construct,		ZEND_ACC_PUBLIC)
+
+	PHP_ME(amqp_queue_class, getName,			arginfo_amqp_queue_class_getName,			ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_queue_class, setName,			arginfo_amqp_queue_class_setName,			ZEND_ACC_PUBLIC)
 	
-	PHP_ME(amqp_queue_class, getParameters,	arginfo_amqp_queue_class_getParameters,	ZEND_ACC_PUBLIC)
-	PHP_ME(amqp_queue_class, setParameters,	arginfo_amqp_queue_class_setParameters,	ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_queue_class, getFlags,			arginfo_amqp_queue_class_getFlags,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_queue_class, setFlags,			arginfo_amqp_queue_class_setFlags,		ZEND_ACC_PUBLIC)
 
-	PHP_ME(amqp_queue_class, getArgument,	arginfo_amqp_queue_class_getArgument,	ZEND_ACC_PUBLIC)
-	PHP_ME(amqp_queue_class, getArguments,	arginfo_amqp_queue_class_getArguments,	ZEND_ACC_PUBLIC)
-	PHP_ME(amqp_queue_class, setArgument,	arginfo_amqp_queue_class_setArgument,	ZEND_ACC_PUBLIC)
-	PHP_ME(amqp_queue_class, setArguments,	arginfo_amqp_queue_class_setArguments,	ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_queue_class, getArgument,		arginfo_amqp_queue_class_getArgument,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_queue_class, getArguments,		arginfo_amqp_queue_class_getArguments,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_queue_class, setArgument,		arginfo_amqp_queue_class_setArgument,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_queue_class, setArguments,		arginfo_amqp_queue_class_setArguments,		ZEND_ACC_PUBLIC)
 
-	PHP_ME(amqp_queue_class, declare,		arginfo_amqp_queue_class_declare,		ZEND_ACC_PUBLIC)
-	PHP_ME(amqp_queue_class, bind,			arginfo_amqp_queue_class_bind,			ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_queue_class, declare,			arginfo_amqp_queue_class_declare,			ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_queue_class, bind,				arginfo_amqp_queue_class_bind,				ZEND_ACC_PUBLIC)
 
-	PHP_ME(amqp_queue_class, get,			arginfo_amqp_queue_class_get,			ZEND_ACC_PUBLIC)
-	PHP_ME(amqp_queue_class, consume,		arginfo_amqp_queue_class_consume,		ZEND_ACC_PUBLIC)
-	PHP_ME(amqp_queue_class, ack,			arginfo_amqp_queue_class_ack,			ZEND_ACC_PUBLIC)
-/*	PHP_ME(amqp_queue_class, nack,			arginfo_amqp_queue_class_nack,			ZEND_ACC_PUBLIC) */
-	PHP_ME(amqp_queue_class, purge,			arginfo_amqp_queue_class_purge,			ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_queue_class, get,				arginfo_amqp_queue_class_get,				ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_queue_class, consume,			arginfo_amqp_queue_class_consume,			ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_queue_class, ack,				arginfo_amqp_queue_class_ack,				ZEND_ACC_PUBLIC)
+/*	PHP_ME(amqp_queue_class, nack,				arginfo_amqp_queue_class_nack,				ZEND_ACC_PUBLIC) */
+	PHP_ME(amqp_queue_class, purge,				arginfo_amqp_queue_class_purge,				ZEND_ACC_PUBLIC)
 
-	PHP_ME(amqp_queue_class, cancel,		arginfo_amqp_queue_class_cancel,		ZEND_ACC_PUBLIC)
-	PHP_ME(amqp_queue_class, delete,		arginfo_amqp_queue_class_delete,		ZEND_ACC_PUBLIC)
-	PHP_ME(amqp_queue_class, unbind,		arginfo_amqp_queue_class_unbind,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_queue_class, cancel,			arginfo_amqp_queue_class_cancel,			ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_queue_class, delete,			arginfo_amqp_queue_class_delete,			ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_queue_class, unbind,			arginfo_amqp_queue_class_unbind,			ZEND_ACC_PUBLIC)
 
 	{NULL, NULL, NULL}	/* Must be the last line in amqp_functions[] */
 };
 
 zend_function_entry amqp_exchange_class_functions[] = {
-	PHP_ME(amqp_exchange_class, __construct,	arginfo_amqp_exchange_class__construct, ZEND_ACC_PUBLIC)
-	PHP_ME(amqp_exchange_class, declare,		arginfo_amqp_exchange_class_declare,	ZEND_ACC_PUBLIC)
-	PHP_ME(amqp_exchange_class, bind,			arginfo_amqp_exchange_class_bind,		ZEND_ACC_PUBLIC)
-	PHP_ME(amqp_exchange_class, delete,			arginfo_amqp_exchange_class_delete,		ZEND_ACC_PUBLIC)
-	PHP_ME(amqp_exchange_class, publish,		arginfo_amqp_exchange_class_publish,	ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_exchange_class, __construct,	arginfo_amqp_exchange_class__construct, 	ZEND_ACC_PUBLIC)
 
-	/* PHP_ME(amqp_queue_class, unbind,		 NULL, ZEND_ACC_PUBLIC) */
+	PHP_ME(amqp_exchange_class, getName,		arginfo_amqp_exchange_class_getName,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_exchange_class, setName,		arginfo_amqp_exchange_class_setName,		ZEND_ACC_PUBLIC)
+
+	PHP_ME(amqp_exchange_class, getFlags,		arginfo_amqp_exchange_class_getFlags,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_exchange_class, setFlags,		arginfo_amqp_exchange_class_setFlags,		ZEND_ACC_PUBLIC)
+
+	PHP_ME(amqp_exchange_class, getType,		arginfo_amqp_exchange_class_getType,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_exchange_class, setType,		arginfo_amqp_exchange_class_setType,		ZEND_ACC_PUBLIC)
+
+	PHP_ME(amqp_exchange_class, declare,		arginfo_amqp_exchange_class_declare,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_exchange_class, bind,			arginfo_amqp_exchange_class_bind,			ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_exchange_class, delete,			arginfo_amqp_exchange_class_delete,			ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_exchange_class, publish,		arginfo_amqp_exchange_class_publish,		ZEND_ACC_PUBLIC)
 
 	{NULL, NULL, NULL}	/* Must be the last line in amqp_functions[] */
 };
@@ -325,6 +352,73 @@ void amqp_error(amqp_rpc_reply_t x, char ** pstr)
 			spprintf(pstr, 0, "Unknown server error, method id 0x%08X",	x.reply.id);
 			break;
 	}
+}
+
+amqp_table_t *convert_zval_to_arguments(zval *zvalArguments)
+{
+	HashTable *argumentHash;
+	HashPosition pos;
+	zval **data;
+	
+	argumentHash = Z_ARRVAL_P(zvalArguments);
+	
+	/* In setArguments, we are overwriting all the existing values */
+	amqp_table_t *arguments = (amqp_table_t *)emalloc(sizeof(amqp_table_t));
+
+	/* Allocate all the memory necessary for storing the arguments */
+	arguments->entries = (amqp_table_entry_t *)emalloc(zend_hash_num_elements(argumentHash) * sizeof(amqp_table_entry_t));
+	arguments->num_entries = 0;
+
+	for (zend_hash_internal_pointer_reset_ex(argumentHash, &pos);
+		zend_hash_get_current_data_ex(argumentHash, (void**) &data, &pos) == SUCCESS;
+		zend_hash_move_forward_ex(argumentHash, &pos)) {
+	
+		/* Make a copy of the value: */
+		zval value;
+		value = **data;
+		zval_copy_ctor(&value);
+	
+		/* Now pull the key */
+		char *key;
+		int key_len;
+		long index;
+	
+		if (zend_hash_get_current_key_ex(argumentHash, &key, &key_len, &index, 0, &pos) != HASH_KEY_IS_STRING) {
+			/* Skip things that are not strings */
+			continue;
+		}
+	
+		/* Build the value */
+		amqp_table_entry_t *table = &arguments->entries[arguments->num_entries++];
+		amqp_field_value_t *field = &table->value;
+		table->key = amqp_cstring_bytes(estrndup(key, key_len));
+	
+		switch (Z_TYPE_P(&value)) {
+			case IS_BOOL:
+				field->kind = AMQP_FIELD_KIND_BOOLEAN;
+				field->value.boolean = (amqp_boolean_t)Z_LVAL_P(&value);
+				break;
+			case IS_DOUBLE:
+				field->kind = AMQP_FIELD_KIND_F64;
+				field->value.f64 = Z_DVAL_P(&value);
+				break;
+			case IS_LONG:
+				field->kind = AMQP_FIELD_KIND_I64;
+				field->value.i64 = Z_LVAL_P(&value);
+				break;
+			case IS_STRING:
+				field->kind = AMQP_FIELD_KIND_BYTES;
+				field->value.bytes = amqp_cstring_bytes(estrndup(Z_STRVAL_P(&value), Z_STRLEN_P(&value)));
+				break;
+			default:
+				continue;
+		}
+			
+		/* Clean up the zval */
+		zval_dtor(&value);
+	}
+
+	return arguments;
 }
 
 PHP_INI_BEGIN()
