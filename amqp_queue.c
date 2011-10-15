@@ -44,20 +44,22 @@
 
 #include "php_amqp.h"
 
+
+/* Used in ctor, so must be declated first */
 void amqp_queue_dtor(void *object TSRMLS_DC)
 {
 	amqp_queue_object *queue = (amqp_queue_object*)object;
-	
+
 	/* Destroy the connection object */
 	if (queue->cnn) {
 		zval_ptr_dtor(&queue->cnn);
 	}
-	
+
 	/* Destroy the arguments storage */
 	if (queue->arguments) {
 		zval_ptr_dtor(&queue->arguments);
 	}
-	
+
 	/* Destroy this object */
 	efree(object);
 }
@@ -70,11 +72,11 @@ zend_object_value amqp_queue_ctor(zend_class_entry *ce TSRMLS_DC)
 	memset(queue, 0, sizeof(amqp_queue_object));
 
 	zend_object_std_init(&queue->zo, ce TSRMLS_CC);
-	
+
 	// Initialize the arguments array:
 	MAKE_STD_ZVAL(queue->arguments);
 	array_init(queue->arguments);
-	
+
 	new_value.handle = zend_objects_store_put(
 		queue,
 		(zend_objects_store_dtor_t)zend_objects_destroy_object,
@@ -85,7 +87,6 @@ zend_object_value amqp_queue_ctor(zend_class_entry *ce TSRMLS_DC)
 
 	return new_value;
 }
-
 
 /* {{{ proto AMQPQueue::__construct(AMQPConnection cnn)
 AMQPQueue constructor
@@ -483,7 +484,7 @@ PHP_METHOD(amqp_queue_class, bind)
 /* }}} */
 
 
-/* {{{ proto int queue::get([ bit params=AMQP_NOACK ]);
+/* {{{ proto int queue::get([ bit flags=AMQP_NOACK ]);
 read message from queue
 return array (count_in_queue, message)
 */
@@ -494,7 +495,7 @@ PHP_METHOD(amqp_queue_class, get)
 
 	char str[256];
 	char **pstr = (char **)&str;
-	long parms = AMQP_NOACK;
+	long flags = AMQP_NOACK;
 
 	amqp_basic_get_ok_t *get_ok;
 	amqp_channel_close_t *err;
@@ -508,7 +509,7 @@ PHP_METHOD(amqp_queue_class, get)
 	char *tmp = NULL;
 	char *old_tmp = NULL;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|l", &id, amqp_queue_class_entry, &parms) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|l", &id, amqp_queue_class_entry, &flags) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -525,7 +526,7 @@ PHP_METHOD(amqp_queue_class, get)
 	s.ticket = 0,
 	s.queue.len = queue->name_len;
 	s.queue.bytes = queue->name;
-	s.no_ack = (AMQP_NOACK & parms) ? 1 : 0;
+	s.no_ack = (AMQP_NOACK & flags) ? 1 : 0;
 
 	amqp_send_method(cnn->conn,
 		AMQP_CHANNEL,
@@ -1116,12 +1117,12 @@ PHP_METHOD(amqp_queue_class, ack)
 	zval *id;
 	amqp_queue_object *queue;
 	long deliveryTag = 0;
-	long parms = 0;
+	long flags = 0;
 
 	amqp_connection_object * cnn;
 	amqp_basic_ack_t s;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Ol|l", &id, amqp_queue_class_entry, &deliveryTag, &parms ) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Ol|l", &id, amqp_queue_class_entry, &deliveryTag, &flags ) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -1135,7 +1136,7 @@ PHP_METHOD(amqp_queue_class, ack)
 	cnn = (amqp_connection_object *)zend_object_store_get_object(queue->cnn TSRMLS_CC);
 
 	s.delivery_tag = deliveryTag;
-	s.multiple = ( AMQP_MULTIPLE & parms ) ? 1 : 0;
+	s.multiple = ( AMQP_MULTIPLE & flags ) ? 1 : 0;
 
 	int res = amqp_send_method(cnn->conn,
 				AMQP_CHANNEL,
@@ -1341,7 +1342,7 @@ PHP_METHOD(amqp_queue_class, unbind)
 /* }}} */
 
 
-/* {{{ proto int queue::delete(name);
+/* {{{ proto int queue::delete([string name, [long flags]]);
 delete queue
 */
 PHP_METHOD(amqp_queue_class, delete)
@@ -1350,13 +1351,13 @@ PHP_METHOD(amqp_queue_class, delete)
 	amqp_queue_object *queue;
 	char *name;
 	int name_len = 0;
-	long parms = 0;
+	long flags = 0;
 
 	amqp_rpc_reply_t res;
 	amqp_rpc_reply_t result;
 	amqp_queue_delete_t s;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|s", &id, amqp_queue_class_entry, &name, &name_len, &parms) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|sl", &id, amqp_queue_class_entry, &name, &name_len, &flags) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -1377,15 +1378,15 @@ PHP_METHOD(amqp_queue_class, delete)
 		s.ticket		= 0;
 		s.queue.len		= name_len;
 		s.queue.bytes	= name;
-		s.if_unused		= (AMQP_IFUNUSED & parms)? 1:0;
-		s.if_empty		= (AMQP_IFEMPTY & parms)? 1:0;
+		s.if_unused		= (AMQP_IFUNUSED & flags)? 1:0;
+		s.if_empty		= (AMQP_IFEMPTY & flags)? 1:0;
 		s.nowait		= 0;
 	} else {
 		s.ticket		= 0;
 		s.queue.len		= queue->name_len;
 		s.queue.bytes	= queue->name;
-		s.if_unused		= (AMQP_IFUNUSED & parms) ? 1 : 0;
-		s.if_empty		= (AMQP_IFEMPTY & parms) ? 1 : 0;
+		s.if_unused		= (AMQP_IFUNUSED & flags) ? 1 : 0;
+		s.if_empty		= (AMQP_IFEMPTY & flags) ? 1 : 0;
 		s.nowait		= 0;
 	}
 

@@ -405,8 +405,8 @@ amqp_table_t *convert_zval_to_arguments(zval *zvalArguments)
 	
 		/* Now pull the key */
 		char *key;
-		int key_len;
-		long index;
+		uint key_len;
+		ulong index;
 	
 		if (zend_hash_get_current_key_ex(argumentHash, &key, &key_len, &index, 0, &pos) != HASH_KEY_IS_STRING) {
 			/* Skip things that are not strings */
@@ -416,7 +416,9 @@ amqp_table_t *convert_zval_to_arguments(zval *zvalArguments)
 		/* Build the value */
 		amqp_table_entry_t *table = &arguments->entries[arguments->num_entries++];
 		amqp_field_value_t *field = &table->value;
-		table->key = amqp_cstring_bytes(estrndup(key, key_len));
+		char *strKey = estrndup(key, key_len);
+		table->key = amqp_cstring_bytes(strKey);
+		efree(strKey);
 	
 		switch (Z_TYPE_P(&value)) {
 			case IS_BOOL:
@@ -433,7 +435,9 @@ amqp_table_t *convert_zval_to_arguments(zval *zvalArguments)
 				break;
 			case IS_STRING:
 				field->kind = AMQP_FIELD_KIND_BYTES;
-				field->value.bytes = amqp_cstring_bytes(estrndup(Z_STRVAL_P(&value), Z_STRLEN_P(&value)));
+				char *strValue = estrndup(Z_STRVAL_P(&value), Z_STRLEN_P(&value));
+				field->value.bytes = amqp_cstring_bytes(strValue);
+				efree(strValue);
 				break;
 			default:
 				continue;
