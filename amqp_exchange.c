@@ -91,8 +91,6 @@ PHP_METHOD(amqp_exchange_class, __construct)
 	amqp_connection_object *exchange_cnn;
 	zend_error_handling error_handling;
 
-	amqp_rpc_reply_t res;
-
 	zend_replace_error_handling(EH_THROW, amqp_exchange_exception_class_entry, &error_handling TSRMLS_CC);
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, amqp_exchange_class_entry, &cnnOb, amqp_connection_class_entry) == FAILURE) {
 		zend_restore_error_handling(&error_handling TSRMLS_CC);
@@ -293,22 +291,14 @@ declare Exchange
 PHP_METHOD(amqp_exchange_class, declare)
 {
 	zval *id;
-	zval *cnnOb;
 
 	amqp_exchange_object *exchange;
 	amqp_connection_object *exchange_cnn;
 
-	char *name = 0;
-	int name_len = 0;
-	char *type;
-	int type_len = 0;
-	char *verified_type;
-	long parms = 0;
 
 	amqp_rpc_reply_t res;
-	amqp_exchange_declare_t s;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|ssl", &id, amqp_exchange_class_entry, &name, &name_len, &type, &type_len, &parms) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_exchange_class_entry) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -368,7 +358,6 @@ delete Exchange
 PHP_METHOD(amqp_exchange_class, delete)
 {
 	zval *id;
-	zval *cnnOb;
 
 	amqp_exchange_object *exchange;
 	amqp_connection_object *exchange_cnn;
@@ -438,7 +427,6 @@ publish into Exchange
 PHP_METHOD(amqp_exchange_class, publish)
 {
 	zval *id;
-	zval *cnnOb;
 	zval *iniArr = NULL;
 	zval** zdata;
 	amqp_exchange_object *exchange;
@@ -710,7 +698,6 @@ PHP_METHOD(amqp_exchange_class, bind)
 {
 	zval *id;
 	amqp_exchange_object *exchange;
-	amqp_connection_object *exchange_cnn;
 	char *queue_name;
 	int queue_name_len;
 	char *keyname;

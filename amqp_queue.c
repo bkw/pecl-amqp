@@ -751,7 +751,6 @@ PHP_METHOD(amqp_queue_class, consume)
 	zval *id;
 	amqp_queue_object *queue;
 	amqp_rpc_reply_t res;
-	
 	int ack;
 	long min_consume;
 	long max_consume;
@@ -786,6 +785,7 @@ PHP_METHOD(amqp_queue_class, consume)
 
 	if (min_consume > max_consume) {
 		zend_throw_exception(amqp_queue_exception_class_entry, "'min' cannot be more then 'max' consume", 0 TSRMLS_CC);
+		return;
 	}
 
 	/* Pull the auto ack settings out of the config array */
@@ -840,6 +840,8 @@ PHP_METHOD(amqp_queue_class, consume)
 			/* see if there are messages in the queue */ 
 			amqp_bytes_t amqp_name;
 			amqp_name = (amqp_bytes_t) {queue->name_len, queue->name};
+			amqp_table_t *arguments = convert_zval_to_arguments(queue->arguments);
+
 			amqp_queue_declare_ok_t *r = amqp_queue_declare(cnn->conn,
 				AMQP_CHANNEL,
 				amqp_name,
@@ -847,7 +849,17 @@ PHP_METHOD(amqp_queue_class, consume)
 				queue->durable,
 				queue->exclusive,
 				queue->auto_delete,
-				AMQP_EMPTY_TABLE);
+				*arguments
+			);
+			
+			/* Verify that we got a response: */
+			if (!r) {
+				zend_throw_exception(amqp_queue_exception_class_entry, "Could not consume messages, failed to read from queue.", 0 TSRMLS_CC);
+				return;
+			}
+			
+			AMQP_EFREE_ARGUMENTS(arguments);
+			
 			int messages_in_queue = r->message_count;
 								
 			/* see if there are frames enqueued */
@@ -857,7 +869,7 @@ PHP_METHOD(amqp_queue_class, consume)
 			amqp_boolean_t buffer = amqp_data_in_buffer(cnn->conn);
 			
 			if (!messages_in_queue && !frames && !buffer) {
-				break;
+					break;
 			}
 		}
 
@@ -1092,7 +1104,6 @@ PHP_METHOD(amqp_queue_class, consume)
 		
 		efree(buf);
 	}
-
 }
 /* }}} */
 
