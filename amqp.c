@@ -456,7 +456,7 @@ PHP_INI_BEGIN()
 	PHP_INI_ENTRY("amqp.port",			DEFAULT_PORT_STR,		PHP_INI_ALL, NULL)
 	PHP_INI_ENTRY("amqp.login",			DEFAULT_LOGIN,			PHP_INI_ALL, NULL)
 	PHP_INI_ENTRY("amqp.password",		DEFAULT_PASSWORD,		PHP_INI_ALL, NULL)
-	PHP_INI_ENTRY("amqp.ack",			DEFAULT_ACK,			PHP_INI_ALL, NULL)
+	PHP_INI_ENTRY("amqp.no_ack",		DEFAULT_ACK,			PHP_INI_ALL, NULL)
 	PHP_INI_ENTRY("amqp.min_consume",	DEFAULT_MIN_CONSUME,	PHP_INI_ALL, NULL)
 	PHP_INI_ENTRY("amqp.max_consume",	DEFAULT_MAX_CONSUME,	PHP_INI_ALL, NULL)
 PHP_INI_END()
@@ -539,7 +539,7 @@ PHP_MINFO_FUNCTION(amqp)
 	php_info_print_table_start();
 	php_info_print_table_header(2, "Version",					"$Revision$");
 	php_info_print_table_header(2, "Compiled",					*pstr);
-	php_info_print_table_header(2, "AMQP protocol version", 	"8.0");
+	php_info_print_table_header(2, "AMQP protocol version", 	"0-9-1");
 	DISPLAY_INI_ENTRIES();
 
 }

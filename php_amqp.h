@@ -118,7 +118,7 @@ extern zend_module_entry amqp_module_entry;
 #include "TSRM.h"
 #endif
 
-#define AMQP_NOPARM			1
+#define AMQP_NOPARAM		0
 
 #define AMQP_DURABLE		2
 #define AMQP_PASSIVE		4
@@ -131,7 +131,7 @@ extern zend_module_entry amqp_module_entry;
 #define AMQP_IFUNUSED		528
 #define AMQP_MANDATORY		1024
 #define AMQP_IMMEDIATE		2048
-#define AMQP_MULTIPLE	   4096
+#define AMQP_MULTIPLE		4096
 
 #define AMQP_EX_TYPE_DIRECT		"direct"
 #define AMQP_EX_TYPE_FANOUT		"fanout"
@@ -151,9 +151,9 @@ extern zend_class_entry *amqp_connection_class_entry;
 extern zend_class_entry *amqp_queue_class_entry;
 extern zend_class_entry *amqp_exchange_class_entry;
 extern zend_class_entry *amqp_exception_class_entry,
-				 *amqp_connection_exception_class_entry,
-				 *amqp_exchange_exception_class_entry,
-				 *amqp_queue_exception_class_entry;
+	*amqp_connection_exception_class_entry,
+	*amqp_exchange_exception_class_entry,
+	*amqp_queue_exception_class_entry;
 
 
 #define FRAME_MAX				131072	/* max length (size) of frame */
@@ -164,9 +164,9 @@ extern zend_class_entry *amqp_exception_class_entry,
 #define DEFAULT_VHOST			"/"
 #define DEFAULT_LOGIN			"guest"
 #define DEFAULT_PASSWORD		"guest"
-#define DEFAULT_ACK				"1"
-#define DEFAULT_MIN_CONSUME		"0"
-#define DEFAULT_MAX_CONSUME		"1"
+#define DEFAULT_ACK				1
+#define DEFAULT_MIN_CONSUME		0
+#define DEFAULT_MAX_CONSUME		1
 #define AMQP_CHANNEL			1	   /* default channel number */
 #define AMQP_HEARTBEAT			0	   /* heartbeat */
 
@@ -177,16 +177,16 @@ extern zend_class_entry *amqp_exception_class_entry,
 #define IS_AUTODELETE(bitmask)	(AMQP_AUTODELETE & bitmask) ? 1 : 0;
 
 #define AMQP_SET_NAME(object, str) (object)->name_len = strlen(str) >= sizeof((object)->name) ? sizeof((object)->name) - 1 : strlen(str); \
-			 strncpy((object)->name, name, (object)->name_len); \
-				 (object)->name[(object)->name_len] = '\0';
+			strncpy((object)->name, name, (object)->name_len); \
+			(object)->name[(object)->name_len] = '\0';
 
 #define AMQP_SET_TYPE(object, str) (object)->type_len = strlen(str) >= sizeof((object)->type) ? sizeof((object)->type) - 1 : strlen(str); \
-			 strncpy((object)->type, type, (object)->type_len); \
-				 (object)->type[(object)->type_len] = '\0';
+			strncpy((object)->type, type, (object)->type_len); \
+			(object)->type[(object)->type_len] = '\0';
 
 #define AMQP_EFREE_ARGUMENTS(object) if (object->entries) \
-											efree(object->entries); \
-									 efree(object);
+				efree(object->entries); \
+			efree(object);
 
 
 /* If you declare any globals in php_amqp.h uncomment this:
