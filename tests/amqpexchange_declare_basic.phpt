@@ -7,7 +7,9 @@ AMQPExchange
 $cnn = new AMQPConnection();
 $cnn->connect();
 
-$ex = new AMQPExchange($cnn);
+$ch = new AMQPChannel($cnn);
+
+$ex = new AMQPExchange($ch);
 echo $ex->declare('exchange-' . time()) ? 'true' : 'false';
 ?>
 --EXPECT--

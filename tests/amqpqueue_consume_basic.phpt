@@ -7,12 +7,14 @@ AMQPQueue
 $cnn = new AMQPConnection();
 $cnn->connect();
 
+$ch = new AMQPChannel($cnn);
+
 // Declare a new exchange
-$ex = new AMQPExchange($cnn);
+$ex = new AMQPExchange($ch);
 $ex->declare('exchange1', AMQP_EX_TYPE_FANOUT);
 
 // Create a new queue
-$q = new AMQPQueue($cnn);
+$q = new AMQPQueue($ch);
 $queueName = 'queue1' . time();
 $q->declare($queueName);
 

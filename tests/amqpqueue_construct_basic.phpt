@@ -6,7 +6,10 @@ AMQPQueue constructor
 <?php
 $cnn = new AMQPConnection();
 $cnn->connect();
-$queue = new AMQPQueue($cnn);
+
+$ch = new AMQPChannel($cnn);
+
+$queue = new AMQPQueue($ch);
 echo get_class($queue);
 ?>
 --EXPECT--

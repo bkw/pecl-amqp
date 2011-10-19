@@ -1,6 +1,6 @@
 ;; AMQP
-Alexandre Kalendarev <akalend@mail.ru> (lead)
-Pieter de Zwart <pdezwart@php.net> (maintainer)
+Alexandre Kalendarev <akalend@mail.ru> (original author)
+Pieter de Zwart <pdezwart@php.net> (lead)
 Andrey Hristov (contributor)
 Brad Rodriguez <brodriguez@php.net> (contributor)
 John Skopis (contributor - PHP < 5.3 compatibility)

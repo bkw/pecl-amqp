@@ -6,7 +6,10 @@ AMQPExchange constructor
 <?php
 $cnn = new AMQPConnection();
 $cnn->connect();
-$ex = new AMQPExchange($cnn);
+
+$ch = new AMQPChannel($cnn);
+
+$ex = new AMQPExchange($ch);
 echo get_class($ex);
 ?>
 --EXPECT--
