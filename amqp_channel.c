@@ -84,7 +84,6 @@ PHP_METHOD(amqp_channel_class, __construct)
 
 	/* Parse out the method parameters */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, amqp_channel_class_entry, &connObj) == FAILURE) {
-		zend_throw_exception(zend_exception_get_default(TSRMLS_C), "parse parameter error", 0 TSRMLS_CC);
 		return;
 	}
 
@@ -135,7 +134,7 @@ PHP_METHOD(amqp_channel_class, isConnected)
 
 	/* Try to pull amqp object out of method params */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_channel_class_entry) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	/* Get the channel object out of the store */
@@ -163,7 +162,7 @@ PHP_METHOD(amqp_channel_class, setPrefetchCount)
 
 	/* Get the vhost from the method params */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Ol", &id, amqp_channel_class_entry, &prefetch_count) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	/* Get the channel object out of the store */
@@ -203,7 +202,7 @@ PHP_METHOD(amqp_channel_class, setPrefetchSize)
 
 	/* Get the vhost from the method params */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Ol", &id, amqp_channel_class_entry, &prefetch_size) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	/* Get the channel object out of the store */
@@ -244,7 +243,7 @@ PHP_METHOD(amqp_channel_class, qos)
 
 	/* Get the vhost from the method params */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oll", &id, amqp_channel_class_entry, &prefetch_size, &prefetch_count) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	/* Get the channel object out of the store */

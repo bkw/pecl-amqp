@@ -89,8 +89,12 @@ PHP_METHOD(amqp_exchange_class, __construct)
 	amqp_exchange_object *exchange;
 	amqp_channel_object *channel;
 	
-	/* @TODO: fix parsing/exception throwing */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, amqp_exchange_class_entry, &channelObj, amqp_channel_class_entry) == FAILURE) {
+		return;
+	}
+	
+	if (!instanceof_function(Z_OBJCE_P(channelObj), amqp_channel_class_entry TSRMLS_CC)) {
+		zend_throw_exception(amqp_queue_exception_class_entry, "The first parameter must be and instance of AMQPChannel.", 0 TSRMLS_CC);
 		return;
 	}
 	
@@ -120,7 +124,7 @@ PHP_METHOD(amqp_exchange_class, getName)
 	amqp_exchange_object *exchange;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_exchange_class_entry) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	exchange = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -145,7 +149,7 @@ PHP_METHOD(amqp_exchange_class, setName)
 	int name_len = 0;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id, amqp_exchange_class_entry, &name, &name_len) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	/* Pull the exchange off the object store */
@@ -172,7 +176,7 @@ PHP_METHOD(amqp_exchange_class, getFlags)
 	long flagBitmask = 0;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_exchange_class_entry) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	exchange = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -196,7 +200,7 @@ PHP_METHOD(amqp_exchange_class, setFlags)
 	long flagBitmask;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oz", &id, amqp_exchange_class_entry, &zvalFlagBitmask) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	/* Pull the exchange off the object store */
@@ -233,7 +237,7 @@ PHP_METHOD(amqp_exchange_class, getType)
 	amqp_exchange_object *exchange;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_exchange_class_entry) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	exchange = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -258,7 +262,7 @@ PHP_METHOD(amqp_exchange_class, setType)
 	int type_len = 0;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id, amqp_exchange_class_entry, &type, &type_len) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	/* Pull the exchange off the object store */
@@ -290,7 +294,7 @@ PHP_METHOD(amqp_exchange_class, getArgument)
 	int key_len;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id, amqp_queue_class_entry, &key, &key_len) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -314,7 +318,7 @@ PHP_METHOD(amqp_exchange_class, getArguments)
 	amqp_queue_object *queue;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_queue_class_entry) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -336,7 +340,7 @@ PHP_METHOD(amqp_exchange_class, setArguments)
 	amqp_exchange_object *exchange;
 		
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oa", &id, amqp_exchange_class_entry, &zvalArguments) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	/* Pull the exchange off the object store */
@@ -367,7 +371,7 @@ PHP_METHOD(amqp_exchange_class, setArgument)
 	int key_len;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Osz", &id, amqp_exchange_class_entry, &key, &key_len, &value) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	/* Pull the exchange off the object store */
@@ -408,7 +412,7 @@ PHP_METHOD(amqp_exchange_class, declare)
 	amqp_rpc_reply_t res;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_exchange_class_entry) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	exchange = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -482,7 +486,7 @@ PHP_METHOD(amqp_exchange_class, delete)
 	amqp_exchange_delete_t s;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|sl", &id, amqp_exchange_class_entry, &name, &name_len, &parms) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	exchange = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -555,7 +559,7 @@ PHP_METHOD(amqp_exchange_class, publish)
 	amqp_rpc_reply_t res;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss|la", &id, amqp_exchange_class_entry, &msg, &msg_len, &key_name, &key_len, &parms, &iniArr) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	exchange = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -792,7 +796,7 @@ PHP_METHOD(amqp_exchange_class, bind)
 	amqp_rpc_reply_t result;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss", &id, amqp_exchange_class_entry, &queue_name, &queue_name_len, &keyname, &keyname_len) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	exchange = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);

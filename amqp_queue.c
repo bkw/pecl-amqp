@@ -99,7 +99,7 @@ PHP_METHOD(amqp_queue_class, __construct)
 	amqp_channel_object *channel;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, amqp_queue_class_entry, &channelObj) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	if (!instanceof_function(Z_OBJCE_P(channelObj), amqp_channel_class_entry TSRMLS_CC)) {
@@ -139,7 +139,7 @@ PHP_METHOD(amqp_queue_class, getName)
 	amqp_queue_object *queue;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_queue_class_entry) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -164,7 +164,7 @@ PHP_METHOD(amqp_queue_class, setName)
 	int name_len = 0;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id, amqp_queue_class_entry, &name, &name_len) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	/* Pull the queue off the object store */
@@ -192,7 +192,7 @@ PHP_METHOD(amqp_queue_class, getFlags)
 	long flagBitmask = 0;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_queue_class_entry) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -208,37 +208,20 @@ PHP_METHOD(amqp_queue_class, getFlags)
 /* }}} */
 
 
-/* {{{ proto AMQPQueue::setFlags(mixed bitmask)
+/* {{{ proto AMQPQueue::setFlags(long bitmask)
 Set the queue parameters */
 PHP_METHOD(amqp_queue_class, setFlags)
 {
 	zval *id;
 	amqp_queue_object *queue;
-	zval *zvalFlagBitmask;
 	long flagBitmask;
 	
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oz", &id, amqp_queue_class_entry, &zvalFlagBitmask) == FAILURE) {
-		RETURN_FALSE;
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oz", &id, amqp_queue_class_entry, &flagBitmask) == FAILURE) {
+		return;
 	}
 
 	/* Pull the queue off the object store */
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
-	
-	/* Parse out the port*/
-	switch (Z_TYPE_P(zvalFlagBitmask)) {
-		case IS_DOUBLE:
-			flagBitmask = (int)Z_DVAL_P(zvalFlagBitmask);
-			break;
-		case IS_LONG:
-			flagBitmask = (int)Z_LVAL_P(zvalFlagBitmask);
-			break;
-		case IS_STRING:
-			convert_to_long(zvalFlagBitmask);
-			flagBitmask = (int)Z_LVAL_P(zvalFlagBitmask);
-			break;
-		default:
-			flagBitmask = 0;
-	}
 	
 	/* Set the flags based on the bitmask we were given */
 	queue->passive = IS_PASSIVE(flagBitmask);
@@ -260,7 +243,7 @@ PHP_METHOD(amqp_queue_class, getArgument)
 	int key_len;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id, amqp_queue_class_entry, &key, &key_len) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -284,7 +267,7 @@ PHP_METHOD(amqp_queue_class, getArguments)
 	amqp_queue_object *queue;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_queue_class_entry) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -305,7 +288,7 @@ PHP_METHOD(amqp_queue_class, setArguments)
 	amqp_queue_object *queue;
 		
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oa", &id, amqp_queue_class_entry, &zvalArguments) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	/* Pull the queue off the object store */
@@ -336,7 +319,7 @@ PHP_METHOD(amqp_queue_class, setArgument)
 	int key_len;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Osz", &id, amqp_queue_class_entry, &key, &key_len, &value) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	/* Pull the queue off the object store */
@@ -382,12 +365,6 @@ PHP_METHOD(amqp_queue_class, declare)
 	}
 
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
-
-	/* Check that the given connection has a channel, before trying to pull the connection off the stack */
-	if (queue->is_connected != '\1') {
-		zend_throw_exception(amqp_queue_exception_class_entry, "Could not declare queue. No connection available.", 0 TSRMLS_CC);
-		return;
-	}
 
 	/* Make sure we have a queue name: */
 	if (queue->name_len < 1) {
@@ -441,7 +418,7 @@ PHP_METHOD(amqp_queue_class, bind)
 	amqp_rpc_reply_t res;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss", &id, amqp_queue_class_entry, &exchange_name, &exchange_name_len, &keyname, &keyname_len) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -457,7 +434,6 @@ PHP_METHOD(amqp_queue_class, bind)
 	
 	connection = AMQP_GET_CONNECTION(channel);
 	AMQP_VERIFY_CONNECTION(connection, amqp_queue_exception_class_entry, "Could not bind queue.");
-	
 
 	amqp_queue_bind_t s;
 	s.ticket 				= 0;
@@ -524,15 +500,10 @@ PHP_METHOD(amqp_queue_class, get)
 	char *old_tmp = NULL;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|l", &id, amqp_queue_class_entry, &flags) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
-	/* Check that the given connection has a channel, before trying to pull the connection off the stack */
-	if (queue->is_connected != '\1') {
-		zend_throw_exception(amqp_queue_exception_class_entry, "Could not get from queue. No connection available.", 0 TSRMLS_CC);
-		return;
-	}
 
 	channel = AMQP_GET_CHANNEL(queue);
 	AMQP_VERIFY_CHANNEL(channel, amqp_queue_exception_class_entry, "Could not get queue.");
@@ -816,7 +787,6 @@ PHP_METHOD(amqp_queue_class, consume)
 
 	/* Parse out the method parameters */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|a", &id, amqp_queue_class_entry, &iniArr) == FAILURE) {
-		zend_throw_exception(zend_exception_get_default(TSRMLS_C), "parse parameter error", 0 TSRMLS_CC);
 		return;
 	}
 	
@@ -1185,7 +1155,7 @@ PHP_METHOD(amqp_queue_class, ack)
 	amqp_basic_ack_t s;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Ol|l", &id, amqp_queue_class_entry, &deliveryTag, &flags ) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -1239,7 +1209,7 @@ PHP_METHOD(amqp_queue_class, nack)
 	amqp_basic_ack_t s;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Ol|l", &id, amqp_queue_class_entry, &deliveryTag, &flags ) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -1292,7 +1262,7 @@ PHP_METHOD(amqp_queue_class, purge)
 	amqp_queue_purge_t s;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_queue_class_entry) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -1357,7 +1327,7 @@ PHP_METHOD(amqp_queue_class, cancel)
 	amqp_basic_cancel_t s;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|s", &id, amqp_queue_class_entry, &consumer_tag, &consumer_tag_len) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -1427,7 +1397,7 @@ PHP_METHOD(amqp_queue_class, unbind)
 	amqp_rpc_reply_t res;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss", &id, amqp_queue_class_entry, &exchange_name, &exchange_name_len, &keyname, &keyname_len) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -1495,7 +1465,7 @@ PHP_METHOD(amqp_queue_class, delete)
 	amqp_queue_delete_t s;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|l", &id, amqp_queue_class_entry, &flags) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
