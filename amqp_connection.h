@@ -37,10 +37,20 @@ PHP_METHOD(amqp_connection_class, isConnected);
 PHP_METHOD(amqp_connection_class, connect);
 PHP_METHOD(amqp_connection_class, disconnect);
 PHP_METHOD(amqp_connection_class, reconnect);
+
+PHP_METHOD(amqp_connection_class, getLogin);
 PHP_METHOD(amqp_connection_class, setLogin);
+
+PHP_METHOD(amqp_connection_class, getPassword);
 PHP_METHOD(amqp_connection_class, setPassword);
+
+PHP_METHOD(amqp_connection_class, getHost);
 PHP_METHOD(amqp_connection_class, setHost);
+
+PHP_METHOD(amqp_connection_class, getPort);
 PHP_METHOD(amqp_connection_class, setPort);
+
+PHP_METHOD(amqp_connection_class, getVhost);
 PHP_METHOD(amqp_connection_class, setVhost);
 
 

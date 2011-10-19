@@ -168,7 +168,7 @@ extern zend_class_entry *amqp_exception_class_entry,
 #define DEFAULT_VHOST						"/"
 #define DEFAULT_LOGIN						"guest"
 #define DEFAULT_PASSWORD					"guest"
-#define DEFAULT_AUTOACK						"1"			/* These are strings to facilitate setting default ini values */
+#define DEFAULT_AUTOACK						"0"			/* These are all strings to facilitate setting default ini values */
 #define DEFAULT_MIN_CONSUME					"0"
 #define DEFAULT_MAX_CONSUME					"1"
 #define DEFAULT_PREFETCH_COUNT				"3"

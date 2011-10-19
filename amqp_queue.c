@@ -775,51 +775,21 @@ PHP_METHOD(amqp_queue_class, consume)
 	amqp_connection_object *connection;
 	
 	amqp_rpc_reply_t res;
-	long min_consume;
-	long max_consume;
-	int auto_ack = 1;
-	zval* iniArr = NULL;
-	zval** zdata;
-
+	long min_consume = INI_INT("amqp.min_consume");
+	long max_consume = INI_INT("amqp.max_consume");
+	long flags = INI_INT("amqp.auto_ack") ? AMQP_AUTOACK : AMQP_NOPARAM;
+	
 	char *pbuf;
 
 	int buf_max = FRAME_MAX;
 
 	/* Parse out the method parameters */
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|a", &id, amqp_queue_class_entry, &iniArr) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|lll", &id, amqp_queue_class_entry, &min_consume, &max_consume, &flags) == FAILURE) {
 		return;
 	}
 	
-	/* Pull the minimum consume settings out of the config array */
-	min_consume = INI_INT("amqp.min_consume");
-	zdata = NULL;
-	if (iniArr && SUCCESS == zend_hash_find(HASH_OF (iniArr), "min", sizeof("min"), (void*)&zdata)) {
-		convert_to_long(*zdata);
-		min_consume = (size_t)Z_LVAL_PP(zdata);
-	}
-	
-	/* Pull the minimum consume settings out of the config array */
-	max_consume = INI_INT("amqp.max_consume");
-	zdata = NULL;
-	if (iniArr && SUCCESS == zend_hash_find(HASH_OF (iniArr), "max", sizeof("max"), (void*)&zdata)) {
-		convert_to_long(*zdata);
-		max_consume = (size_t)Z_LVAL_PP(zdata);
-	}
-
-	if (min_consume > max_consume) {
-		zend_throw_exception(amqp_queue_exception_class_entry, "'min' cannot be more then 'max' consume", 0 TSRMLS_CC);
-		return;
-	}
-
-	/* Pull the auto auto_ack settings out of the config array */
-	auto_ack = INI_INT("amqp.auto_ack");
-	zdata = NULL;
-	if (iniArr && SUCCESS == zend_hash_find(HASH_OF (iniArr), "auto_ack", sizeof("auto_ack"), (void*)&zdata)) {
-		convert_to_long(*zdata);
-		auto_ack = (size_t)Z_LVAL_PP(zdata);
-	}
-
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
+	
 	/* Check that the given connection has a channel, before trying to pull the connection off the stack */
 	if (queue->is_connected != '\1') {
 		zend_throw_exception(amqp_queue_exception_class_entry, "Could not consume from queue. No connection available.", 0 TSRMLS_CC);
@@ -1129,7 +1099,7 @@ PHP_METHOD(amqp_queue_class, consume)
 		add_index_zval(return_value, i, message);
 		
 		/* if we have chosen to auto_ack, meaning that we do not need to acknowledge at a later date, acknowledge now */
-		if (auto_ack) {
+		if (flags & AMQP_AUTOACK) {
 			amqp_basic_ack(connection->connection_state, channel->channel_id, delivery->delivery_tag, 0);
 		}
 		

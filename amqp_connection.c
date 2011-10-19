@@ -181,7 +181,6 @@ PHP_METHOD(amqp_connection_class, __construct)
 
 	/* Parse out the method parameters */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|a", &id, amqp_connection_class_entry, &iniArr) == FAILURE) {
-		zend_throw_exception(zend_exception_get_default(TSRMLS_C), "parse parameter error", 0 TSRMLS_CC);
 		return;
 	}
 
@@ -275,7 +274,7 @@ PHP_METHOD(amqp_connection_class, isConnected)
 
 	/* Try to pull amqp object out of method params */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_connection_class_entry) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	/* Get the connection object out of the store */
@@ -301,7 +300,7 @@ PHP_METHOD(amqp_connection_class, connect)
 
 	/* Try to pull amqp object out of method params */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_connection_class_entry) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	/* Get the connection object out of the store */
@@ -324,7 +323,7 @@ PHP_METHOD(amqp_connection_class, disconnect)
 
 	/* Try to pull amqp object out of method params */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_connection_class_entry) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	/* Get the connection object out of the store */
@@ -346,7 +345,7 @@ PHP_METHOD(amqp_connection_class, reconnect)
 
 	/* Try to pull amqp object out of method params */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_connection_class_entry) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	/* Get the connection object out of the store */
@@ -361,8 +360,29 @@ PHP_METHOD(amqp_connection_class, reconnect)
 	/* @TODO: return the success or failure of connect */
 	RETURN_TRUE;
 }
-
 /* }}} */
+
+
+/* {{{ proto amqp::getLogin()
+get the login */
+PHP_METHOD(amqp_connection_class, getLogin)
+{
+	zval *id;
+	amqp_connection_object *connection;
+
+	/* Get the login from the method params */
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_connection_class_entry) == FAILURE) {
+		return;
+	}
+
+	/* Get the connection object out of the store */
+	connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
+
+	/* Copy the login to the amqp object */
+	RETURN_STRING(connection->login, 1);
+}
+/* }}} */
+
 
 /* {{{ proto amqp::setLogin(string login)
 set the login */
@@ -376,7 +396,7 @@ PHP_METHOD(amqp_connection_class, setLogin)
 	/* @TODO: use macro when one is created for constructor */
 	/* Get the login from the method params */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id, amqp_connection_class_entry, &login, &login_len) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	/* Validate login length */
@@ -395,6 +415,27 @@ PHP_METHOD(amqp_connection_class, setLogin)
 }
 /* }}} */
 
+/* {{{ proto amqp::getPassword()
+get the password */
+PHP_METHOD(amqp_connection_class, getPassword)
+{
+	zval *id;
+	amqp_connection_object *connection;
+
+	/* Get the password from the method params */
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_connection_class_entry) == FAILURE) {
+		return;
+	}
+
+	/* Get the connection object out of the store */
+	connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
+
+	/* Copy the password to the amqp object */
+	RETURN_STRING(connection->password, 1);
+}
+/* }}} */
+
+
 /* {{{ proto amqp::setPassword(string password)
 set the password */
 PHP_METHOD(amqp_connection_class, setPassword)
@@ -405,9 +446,8 @@ PHP_METHOD(amqp_connection_class, setPassword)
 	int password_len;
 
 	/* Get the password from the method params */
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id,
-	amqp_connection_class_entry, &password, &password_len) == FAILURE) {
-		RETURN_FALSE;
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id, amqp_connection_class_entry, &password, &password_len) == FAILURE) {
+		return;
 	}
 
 	/* Validate password length */
@@ -426,6 +466,28 @@ PHP_METHOD(amqp_connection_class, setPassword)
 }
 /* }}} */
 
+
+/* {{{ proto amqp::getHost()
+get the host */
+PHP_METHOD(amqp_connection_class, getHost)
+{
+	zval *id;
+	amqp_connection_object *connection;
+
+	/* Get the host from the method params */
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_connection_class_entry) == FAILURE) {
+		return;
+	}
+
+	/* Get the connection object out of the store */
+	connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
+
+	/* Copy the host to the amqp object */
+	RETURN_STRING(connection->host, 1);
+}
+/* }}} */
+
+
 /* {{{ proto amqp::setHost(string host)
 set the host */
 PHP_METHOD(amqp_connection_class, setHost)
@@ -437,7 +499,7 @@ PHP_METHOD(amqp_connection_class, setHost)
 
 	/* Get the host from the method params */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id, amqp_connection_class_entry, &host, &host_len) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	/* Validate host length */
@@ -456,6 +518,28 @@ PHP_METHOD(amqp_connection_class, setHost)
 }
 /* }}} */
 
+
+/* {{{ proto amqp::getPort()
+get the port */
+PHP_METHOD(amqp_connection_class, getPort)
+{
+	zval *id;
+	amqp_connection_object *connection;
+
+	/* Get the port from the method params */
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_connection_class_entry) == FAILURE) {
+		return;
+	}
+
+	/* Get the connection object out of the store */
+	connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
+
+	/* Copy the port to the amqp object */
+	RETURN_LONG(connection->port);
+}
+/* }}} */
+
+
 /* {{{ proto amqp::setPort(mixed port)
 set the port */
 PHP_METHOD(amqp_connection_class, setPort)
@@ -467,7 +551,7 @@ PHP_METHOD(amqp_connection_class, setPort)
 
 	/* Get the port from the method params */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oz", &id, amqp_connection_class_entry, &zvalPort) == FAILURE) {
-		RETURN_FALSE;
+		return;
 	}
 
 	/* Parse out the port*/
@@ -502,6 +586,27 @@ PHP_METHOD(amqp_connection_class, setPort)
 }
 /* }}} */
 
+/* {{{ proto amqp::getVhost()
+get the vhost */
+PHP_METHOD(amqp_connection_class, getVhost)
+{
+	zval *id;
+	amqp_connection_object *connection;
+
+	/* Get the vhost from the method params */
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_connection_class_entry) == FAILURE) {
+		return;
+	}
+
+	/* Get the connection object out of the store */
+	connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
+
+	/* Copy the vhost to the amqp object */
+	RETURN_STRING(connection->vhost, 1);
+}
+/* }}} */
+
+
 /* {{{ proto amqp::setVhost(string vhost)
 set the vhost */
 PHP_METHOD(amqp_connection_class, setVhost)
@@ -512,9 +617,8 @@ PHP_METHOD(amqp_connection_class, setVhost)
 	int vhost_len;
 
 	/* Get the vhost from the method params */
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id,
-	amqp_connection_class_entry, &vhost, &vhost_len) == FAILURE) {
-		RETURN_FALSE;
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id, amqp_connection_class_entry, &vhost, &vhost_len) == FAILURE) {
+		return;
 	}
 
 	/* Validate vhost length */
