@@ -48,8 +48,8 @@ void amqp_exchange_dtor(void *object TSRMLS_DC)
 	amqp_exchange_object *exchange = (amqp_exchange_object*)object;
 
 	/* Destroy the connection object */
-	if (exchange->cnn) {
-		zval_ptr_dtor(&exchange->cnn);
+	if (exchange->channel) {
+		zval_ptr_dtor(&exchange->channel);
 	}
 
 	if (exchange->arguments) {
@@ -74,48 +74,40 @@ zend_object_value amqp_exchange_ctor(zend_class_entry *ce TSRMLS_DC)
 
 	zend_object_std_init(&exchange->zo, ce TSRMLS_CC);
 
-	new_value.handle = zend_objects_store_put(exchange, (zend_objects_store_dtor_t)zend_objects_destroy_object,
-		(zend_objects_free_object_storage_t)amqp_exchange_dtor, NULL TSRMLS_CC);
+	new_value.handle = zend_objects_store_put(exchange, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t)amqp_exchange_dtor, NULL TSRMLS_CC);
 	new_value.handlers = zend_get_std_object_handlers();
 
 	return new_value;
 }
 
-/* {{{ proto AMQPExchange::__construct(AMQPConnection cnn);
+/* {{{ proto AMQPExchange::__construct(AMQPChannel channel);
 declare Exchange   */
 PHP_METHOD(amqp_exchange_class, __construct)
 {
 	zval *id;
-	zval *cnnOb;
+	zval *channelObj;
 	amqp_exchange_object *exchange;
-	amqp_connection_object *exchange_cnn;
-	zend_error_handling error_handling;
-
-	zend_replace_error_handling(EH_THROW, amqp_exchange_exception_class_entry, &error_handling TSRMLS_CC);
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, amqp_exchange_class_entry, &cnnOb, amqp_connection_class_entry) == FAILURE) {
-		zend_restore_error_handling(&error_handling TSRMLS_CC);
+	amqp_channel_object *channel;
+	
+	/* @TODO: fix parsing/exception throwing */
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, amqp_exchange_class_entry, &channelObj, amqp_channel_class_entry) == FAILURE) {
 		return;
 	}
 	
 	exchange = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
 
-	exchange->cnn = cnnOb;
+	exchange->channel = channelObj;
+
 	/* Increment the ref count */
-	Z_ADDREF_P(cnnOb);
+	Z_ADDREF_P(channelObj);
 	
-	exchange_cnn = (amqp_connection_object *) zend_object_store_get_object(exchange->cnn TSRMLS_CC);
+	/* Pull the channel out */
+	channel = AMQP_GET_CHANNEL(exchange);
 
-	/* Check that the given connection has a channel, before trying to pull the connection off the stack */
-	if (exchange_cnn->is_connected != '\1') {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Could not create exchange. No connection available.");
-		zend_restore_error_handling(&error_handling TSRMLS_CC);
-		return;
-	}
-
+	AMQP_VERIFY_CHANNEL(channel, amqp_exchange_exception_class_entry, "Could not create exchange.");
+	
 	/* We have a valid connection: */
 	exchange->is_connected = '\1';
-
-	zend_restore_error_handling(&error_handling TSRMLS_CC);
 }
 /* }}} */
 
@@ -285,6 +277,123 @@ PHP_METHOD(amqp_exchange_class, setType)
 }
 /* }}} */
 
+
+
+/* {{{ proto AMQPExchange::getArgument(string key)
+Get the queue argument referenced by key */
+PHP_METHOD(amqp_exchange_class, getArgument)
+{
+	zval *id;
+	zval **tmp;
+	amqp_queue_object *queue;
+	char *key;
+	int key_len;
+	
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id, amqp_queue_class_entry, &key, &key_len) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
+	
+	if (zend_hash_find(Z_ARRVAL_P(queue->arguments), key, key_len + 1, (void **)&tmp) == FAILURE) {
+		RETURN_FALSE;
+	}
+	
+	*return_value = **tmp;
+	zval_copy_ctor(return_value);
+	
+	Z_ADDREF_P(return_value);
+}
+/* }}} */
+
+/* {{{ proto AMQPExchange::getArguments
+Get the queue arguments */
+PHP_METHOD(amqp_exchange_class, getArguments)
+{
+	zval *id;
+	amqp_queue_object *queue;
+	
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_queue_class_entry) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
+	
+	*return_value = *queue->arguments;
+	zval_copy_ctor(return_value);
+
+	/* Increment the ref count */
+	Z_ADDREF_P(queue->arguments);
+}
+/* }}} */
+
+
+/* {{{ proto AMQPExchange::setArguments(array args)
+Overwrite all exchange arguments with given args */
+PHP_METHOD(amqp_exchange_class, setArguments)
+{
+	zval *id, *zvalArguments;
+	amqp_exchange_object *exchange;
+		
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oa", &id, amqp_exchange_class_entry, &zvalArguments) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	/* Pull the exchange off the object store */
+	exchange = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
+	
+	/* Destroy the arguments storage */
+	if (exchange->arguments) {
+		zval_ptr_dtor(&exchange->arguments);
+	}
+	
+	exchange->arguments = zvalArguments;
+	
+	/* Increment the ref count */
+	Z_ADDREF_P(exchange->arguments);
+
+	RETURN_TRUE;
+}
+/* }}} */
+
+
+/* {{{ proto AMQPExchange::setArgument(key, value)
+Get the exchange name */
+PHP_METHOD(amqp_exchange_class, setArgument)
+{
+	zval *id, *value;
+	amqp_exchange_object *exchange;
+	char *key;
+	int key_len;
+	
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Osz", &id, amqp_exchange_class_entry, &key, &key_len, &value) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	/* Pull the exchange off the object store */
+	exchange = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
+
+	switch (Z_TYPE_P(value)) {
+		case IS_NULL:
+			zend_hash_del_key_or_index(Z_ARRVAL_P(exchange->arguments), key, key_len + 1, 0, HASH_DEL_KEY);
+			break;
+		case IS_BOOL:
+		case IS_LONG:
+		case IS_DOUBLE:
+		case IS_STRING:
+			add_assoc_zval(exchange->arguments, key, value);
+			Z_ADDREF_P(value);
+			break;
+		default:
+			zend_throw_exception(amqp_exchange_exception_class_entry, "The value parameter must be of type NULL, int, double or string.", 0 TSRMLS_CC);
+			return;
+	}
+	
+	RETURN_TRUE;
+}
+/* }}} */
+
+
 /* {{{ proto AMQPExchange::declare();
 declare Exchange
 */
@@ -293,9 +402,9 @@ PHP_METHOD(amqp_exchange_class, declare)
 	zval *id;
 
 	amqp_exchange_object *exchange;
-	amqp_connection_object *exchange_cnn;
-
-
+	amqp_channel_object *channel;
+	amqp_connection_object *connection;
+	
 	amqp_rpc_reply_t res;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_exchange_class_entry) == FAILURE) {
@@ -304,18 +413,12 @@ PHP_METHOD(amqp_exchange_class, declare)
 
 	exchange = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
 
-	/* Check that the given connection is active before declaring the exchange */
-	if (exchange->is_connected != '\1') {
-		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not declare exchange. No connection available.", 0 TSRMLS_CC);
-		return;
-	}
-
-	exchange_cnn = (amqp_connection_object *) zend_object_store_get_object(exchange->cnn TSRMLS_CC);
-
-	if (!exchange_cnn) {
-		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not declare exchange. The given AMQPConnection object is null.", 0 TSRMLS_CC);
-		return;
-	}
+	channel = AMQP_GET_CHANNEL(exchange);
+	AMQP_VERIFY_CHANNEL(channel, amqp_exchange_exception_class_entry, "Could not declare exchange.");
+	
+	connection = AMQP_GET_CONNECTION(channel);
+	AMQP_VERIFY_CONNECTION(connection, amqp_exchange_exception_class_entry, "Could not declare exchange.");
+	
 
 	/* Check that the exchange has a name */
 	if (exchange->name_len < 1) {
@@ -331,9 +434,17 @@ PHP_METHOD(amqp_exchange_class, declare)
 
 	amqp_table_t *arguments = convert_zval_to_arguments(exchange->arguments);
 	
-	amqp_exchange_declare(exchange_cnn->conn, AMQP_CHANNEL, amqp_cstring_bytes(exchange->name), amqp_cstring_bytes(exchange->type), exchange->passive, exchange->durable, *arguments);
+	amqp_exchange_declare(
+		connection->connection_state,
+		channel->channel_id,
+		amqp_cstring_bytes(exchange->name),
+		amqp_cstring_bytes(exchange->type),
+		exchange->passive,
+		exchange->durable,
+		*arguments
+	);
 
-	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(exchange_cnn->conn); 
+	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(connection->connection_state); 
 
 	AMQP_EFREE_ARGUMENTS(arguments);
 	
@@ -342,7 +453,7 @@ PHP_METHOD(amqp_exchange_class, declare)
 		char str[256];
 		char ** pstr = (char **) &str;
 		amqp_error(res, pstr);
-		exchange_cnn->is_connected = '\0';
+		connection->is_connected = '\0';
 		zend_throw_exception(amqp_exchange_exception_class_entry, *pstr, 0 TSRMLS_CC);
 		return;
 	}
@@ -360,7 +471,8 @@ PHP_METHOD(amqp_exchange_class, delete)
 	zval *id;
 
 	amqp_exchange_object *exchange;
-	amqp_connection_object *exchange_cnn;
+	amqp_channel_object *channel;
+	amqp_connection_object *connection;
 
 	char *name = 0;
 	int name_len = 0;
@@ -390,21 +502,17 @@ PHP_METHOD(amqp_exchange_class, delete)
 		s.nowait = 0;
 	}
 
-/* Check that the given connection has a channel, before trying to pull the connection off the stack */
-	if (exchange->is_connected != '\1') {
-		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not delete exchange. No connection available.", 0 TSRMLS_CC);
-		return;
-	}
-
-	exchange_cnn = (amqp_connection_object *) zend_object_store_get_object(exchange->cnn TSRMLS_CC);
-	if(!exchange_cnn) {
-		zend_throw_exception(amqp_exchange_exception_class_entry, "The given AMQPConnection object is null.", 0 TSRMLS_CC);
-		return;
-	}
-
+	channel = AMQP_GET_CHANNEL(exchange);
+	AMQP_VERIFY_CHANNEL(channel, amqp_exchange_exception_class_entry, "Could not declare exchange.");
+	
+	connection = AMQP_GET_CONNECTION(channel);
+	AMQP_VERIFY_CONNECTION(connection, amqp_exchange_exception_class_entry, "Could not declare exchange.");
+	
 	amqp_method_number_t method_ok = AMQP_EXCHANGE_DELETE_OK_METHOD;
 
-	res = amqp_simple_rpc(exchange_cnn->conn, AMQP_CHANNEL,
+	res = amqp_simple_rpc(
+		connection->connection_state,
+		channel->channel_id,
 		AMQP_EXCHANGE_DELETE_METHOD,
 		&method_ok, &s
 	);
@@ -430,8 +538,9 @@ PHP_METHOD(amqp_exchange_class, publish)
 	zval *iniArr = NULL;
 	zval** zdata;
 	amqp_exchange_object *exchange;
-	amqp_connection_object *exchange_cnn;
-
+	amqp_channel_object *channel;
+	amqp_connection_object *connection;
+	
 	char *key_name = NULL;
 	int key_len = 0;
 
@@ -445,8 +554,7 @@ PHP_METHOD(amqp_exchange_class, publish)
 
 	amqp_rpc_reply_t res;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss|la",
-	&id, amqp_exchange_class_entry, &msg, &msg_len, &key_name, &key_len, &parms, &iniArr) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss|la", &id, amqp_exchange_class_entry, &msg, &msg_len, &key_name, &key_len, &parms, &iniArr) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -462,21 +570,7 @@ PHP_METHOD(amqp_exchange_class, publish)
 		return;
 	}
 
-	/* Check that the given connection has a channel, before trying to pull the connection off the stack */
-	if (exchange->is_connected != '\1') {
-		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not publish to exchange. No connection available.", 0 TSRMLS_CC);
-		return;
-	}
-
-	exchange_cnn = (amqp_connection_object *) zend_object_store_get_object(exchange->cnn TSRMLS_CC);
-
-	if(!exchange_cnn) {
-		zend_throw_exception(amqp_exchange_exception_class_entry, "The given AMQPConnection object is null.", 0 TSRMLS_CC);
-		return;
-	}
-
 	amqp_basic_properties_t props;
-
 	props._flags = AMQP_BASIC_CONTENT_TYPE_FLAG;
 
 	zdata = NULL;
@@ -533,7 +627,6 @@ PHP_METHOD(amqp_exchange_class, publish)
 		props.delivery_mode = (uint8_t)Z_LVAL_PP(zdata);
 		props._flags += AMQP_BASIC_DELIVERY_MODE_FLAG;
 	}
-
 
 	zdata = NULL;
 	if (iniArr && SUCCESS == zend_hash_find(HASH_OF (iniArr), "priority", sizeof("priority"), (void*)&zdata)) {
@@ -633,33 +726,22 @@ PHP_METHOD(amqp_exchange_class, publish)
 
 			zend_hash_move_forward_ex(headers, &pos);
 		}
-
-		} else {
-			props.headers.entries = 0;
-		}
-	
-	if (exchange->is_connected != '\1') {
-		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not publish. No connection available.", 0 TSRMLS_CC);
-		return;
-	}
-
-	exchange_cnn = (amqp_connection_object *) zend_object_store_get_object(exchange->cnn TSRMLS_CC);
-	if(!exchange_cnn) {
-		zend_throw_exception(amqp_exchange_exception_class_entry, "The given AMQPConnection object is null.", 0 TSRMLS_CC);
-		return;
+	} else {
+		props.headers.entries = 0;
 	}
 	
-	if (exchange_cnn->fd < 0) {
-		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not publish. Connetion socket is closed.", 0 TSRMLS_CC);
-		return;
-	}
+	channel = AMQP_GET_CHANNEL(exchange);
+	AMQP_VERIFY_CHANNEL(channel, amqp_exchange_exception_class_entry, "Could not publish to exchange exchange.");
+
+	connection = AMQP_GET_CONNECTION(channel);
+	AMQP_VERIFY_CONNECTION(connection, amqp_exchange_exception_class_entry, "Could not publish to exchange exchange.");
 
 	/* Start ignoring SIGPIPE */
 	old_handler = signal(SIGPIPE, SIG_IGN);
 
 	int r = amqp_basic_publish(
-		exchange_cnn->conn,
-		AMQP_CHANNEL,
+		connection->connection_state,
+		channel->channel_id,
 		(amqp_bytes_t) {exchange->name_len, exchange->name},
 		(amqp_bytes_t) {key_len, key_name },
 		(AMQP_MANDATORY & parms) ? 1 : 0, /* mandatory */
@@ -679,8 +761,8 @@ PHP_METHOD(amqp_exchange_class, publish)
 	if (r) {
 		char str[256];
 		char ** pstr = (char **) &str;
-		res = (amqp_rpc_reply_t)amqp_get_rpc_reply(exchange_cnn->conn); 
-		exchange_cnn->is_connected = '\0';
+		res = (amqp_rpc_reply_t)amqp_get_rpc_reply(connection->connection_state); 
+		connection->is_connected = '\0';
 		amqp_error(res, pstr);
 		zend_throw_exception(amqp_exchange_exception_class_entry, *pstr, 0 TSRMLS_CC);
 		return;
@@ -698,6 +780,9 @@ PHP_METHOD(amqp_exchange_class, bind)
 {
 	zval *id;
 	amqp_exchange_object *exchange;
+	amqp_channel_object *channel;
+	amqp_connection_object *connection;
+	
 	char *queue_name;
 	int queue_name_len;
 	char *keyname;
@@ -711,14 +796,12 @@ PHP_METHOD(amqp_exchange_class, bind)
 	}
 
 	exchange = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
-
-	/* Check that the given connection has a channel, before trying to pull the connection off the stack */
-	if (exchange->is_connected != '\1') {
-		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not bind exchange. No connection available.", 0 TSRMLS_CC);
-		return;
-	}
-
-	amqp_connection_object *cnn = (amqp_connection_object *) zend_object_store_get_object(exchange->cnn TSRMLS_CC);
+	
+	channel = AMQP_GET_CHANNEL(exchange);
+	AMQP_VERIFY_CHANNEL(channel, amqp_exchange_exception_class_entry, "Could not bind to exchange.");
+	
+	connection = AMQP_GET_CONNECTION(channel);
+	AMQP_VERIFY_CONNECTION(connection, amqp_exchange_exception_class_entry, "Could not bind to exchanges.");
 
 	amqp_queue_bind_t s;
 	s.ticket				= 0;
@@ -733,8 +816,9 @@ PHP_METHOD(amqp_exchange_class, bind)
 	s.arguments.entries		= NULL;
 
 	amqp_method_number_t method_ok = AMQP_QUEUE_BIND_OK_METHOD;
-	result = amqp_simple_rpc(cnn->conn,
-		AMQP_CHANNEL,
+	result = amqp_simple_rpc(
+		connection->connection_state,
+		channel->channel_id,
 		AMQP_QUEUE_BIND_METHOD,
 		&method_ok,
 		&s);
@@ -745,7 +829,7 @@ PHP_METHOD(amqp_exchange_class, bind)
 		char str[256];
 		char ** pstr = (char **) &str;
 		amqp_error(res, pstr);
-		cnn->is_channel_connected = 0;
+		connection->is_connected = 0;
 		zend_throw_exception(amqp_exchange_exception_class_entry, *pstr, 0 TSRMLS_CC);
 		return;
 	}

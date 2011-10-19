@@ -39,6 +39,11 @@ PHP_METHOD(amqp_exchange_class, setType);
 PHP_METHOD(amqp_exchange_class, getFlags);
 PHP_METHOD(amqp_exchange_class, setFlags);
 
+PHP_METHOD(amqp_exchange_class, getArgument);
+PHP_METHOD(amqp_exchange_class, getArguments);
+PHP_METHOD(amqp_exchange_class, setArgument);
+PHP_METHOD(amqp_exchange_class, setArguments);
+
 PHP_METHOD(amqp_exchange_class, declare);
 PHP_METHOD(amqp_exchange_class, delete);
 PHP_METHOD(amqp_exchange_class, bind);

@@ -41,6 +41,7 @@
 
 #include "php_amqp.h"
 #include "amqp_connection.h"
+#include "amqp_channel.h"
 #include "amqp_queue.h"
 #include "amqp_exchange.h"
 
@@ -48,10 +49,12 @@
 
 /* True global resources - no need for thread safety here */
 zend_class_entry *amqp_connection_class_entry;
+zend_class_entry *amqp_channel_class_entry;
 zend_class_entry *amqp_queue_class_entry;
 zend_class_entry *amqp_exchange_class_entry;
 zend_class_entry *amqp_exception_class_entry,
 				 *amqp_connection_exception_class_entry,
+				 *amqp_channel_exception_class_entry,
 				 *amqp_exchange_exception_class_entry,
 				 *amqp_queue_exception_class_entry;
 
@@ -94,10 +97,25 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_connection_class_setVhost, ZEND_SEND_BY_VAL,
 	ZEND_ARG_INFO(0, vhost)
 ZEND_END_ARG_INFO()
 
+/* amqp_channel_class ARG_INFO definition */
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_channel_class__construct, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
+	ZEND_ARG_INFO(0, amqp_connection)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_channel_class_isConnected, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_channel_class_setPrefetchSize, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
+	ZEND_ARG_INFO(0, size)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_channel_class_setPrefetchCount, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
+	ZEND_ARG_INFO(0, count)
+ZEND_END_ARG_INFO()
+
 /* amqp_queue_class ARG_INFO definition */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class__construct, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
-	ZEND_ARG_INFO(0, amqp_connection)
-
+	ZEND_ARG_INFO(0, amqp_channel)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_getName, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
@@ -148,6 +166,12 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_ack, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
 	ZEND_ARG_INFO(0, delivery_tag)
+	ZEND_ARG_INFO(0, flags)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_nack, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
+	ZEND_ARG_INFO(0, delivery_tag)
+	ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_purge, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
@@ -167,11 +191,9 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_queue_class_delete, ZEND_SEND_BY_VAL, ZEND_R
 	ZEND_ARG_INFO(0, queue_name)
 ZEND_END_ARG_INFO()
 
-
 /* amqp_exchange ARG_INFO definition */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class__construct, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
-	ZEND_ARG_INFO(0, amqp_connection)
-	ZEND_ARG_INFO(0, exchange_name)
+	ZEND_ARG_INFO(0, amqp_channel)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_getName, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
@@ -193,6 +215,22 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_setType, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
 	ZEND_ARG_INFO(0, exchange_type)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_getArgument, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
+	ZEND_ARG_INFO(0, argument)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_getArguments, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_setArgument, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 2)
+	ZEND_ARG_INFO(0, key)
+	ZEND_ARG_INFO(0, value)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_setArguments, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
+	ZEND_ARG_INFO(0, arguments)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_declare, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
@@ -223,11 +261,21 @@ zend_function_entry amqp_connection_class_functions[] = {
 	PHP_ME(amqp_connection_class, connect, 		arginfo_amqp_connection_class_connect, 		ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_connection_class, disconnect, 	arginfo_amqp_connection_class_disconnect,	ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_connection_class, reconnect, 	arginfo_amqp_connection_class_reconnect,	ZEND_ACC_PUBLIC)
+
 	PHP_ME(amqp_connection_class, setLogin, 	arginfo_amqp_connection_class_setLogin,		ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_connection_class, setPassword, 	arginfo_amqp_connection_class_setPassword,	ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_connection_class, setHost, 		arginfo_amqp_connection_class_setHost,		ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_connection_class, setPort, 		arginfo_amqp_connection_class_setPort,		ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_connection_class, setVhost, 	arginfo_amqp_connection_class_setVhost,		ZEND_ACC_PUBLIC)
+
+	{NULL, NULL, NULL}	/* Must be the last line in amqp_functions[] */
+};
+
+zend_function_entry amqp_channel_class_functions[] = {
+	PHP_ME(amqp_channel_class, __construct, 	arginfo_amqp_channel_class__construct,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_channel_class, isConnected, 	arginfo_amqp_channel_class_isConnected,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_channel_class, setPrefetchSize, arginfo_amqp_channel_class_setPrefetchSize,	ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_channel_class, setPrefetchCount,arginfo_amqp_channel_class_setPrefetchCount,ZEND_ACC_PUBLIC)
 
 	{NULL, NULL, NULL}	/* Must be the last line in amqp_functions[] */
 };
@@ -238,8 +286,8 @@ zend_function_entry amqp_queue_class_functions[] = {
 	PHP_ME(amqp_queue_class, getName,			arginfo_amqp_queue_class_getName,			ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_queue_class, setName,			arginfo_amqp_queue_class_setName,			ZEND_ACC_PUBLIC)
 	
-	PHP_ME(amqp_queue_class, getFlags,			arginfo_amqp_queue_class_getFlags,		ZEND_ACC_PUBLIC)
-	PHP_ME(amqp_queue_class, setFlags,			arginfo_amqp_queue_class_setFlags,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_queue_class, getFlags,			arginfo_amqp_queue_class_getFlags,			ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_queue_class, setFlags,			arginfo_amqp_queue_class_setFlags,			ZEND_ACC_PUBLIC)
 
 	PHP_ME(amqp_queue_class, getArgument,		arginfo_amqp_queue_class_getArgument,		ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_queue_class, getArguments,		arginfo_amqp_queue_class_getArguments,		ZEND_ACC_PUBLIC)
@@ -252,7 +300,7 @@ zend_function_entry amqp_queue_class_functions[] = {
 	PHP_ME(amqp_queue_class, get,				arginfo_amqp_queue_class_get,				ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_queue_class, consume,			arginfo_amqp_queue_class_consume,			ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_queue_class, ack,				arginfo_amqp_queue_class_ack,				ZEND_ACC_PUBLIC)
-/*	PHP_ME(amqp_queue_class, nack,				arginfo_amqp_queue_class_nack,				ZEND_ACC_PUBLIC) */
+	PHP_ME(amqp_queue_class, nack,				arginfo_amqp_queue_class_nack,				ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_queue_class, purge,				arginfo_amqp_queue_class_purge,				ZEND_ACC_PUBLIC)
 
 	PHP_ME(amqp_queue_class, cancel,			arginfo_amqp_queue_class_cancel,			ZEND_ACC_PUBLIC)
@@ -273,6 +321,11 @@ zend_function_entry amqp_exchange_class_functions[] = {
 
 	PHP_ME(amqp_exchange_class, getType,		arginfo_amqp_exchange_class_getType,		ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_exchange_class, setType,		arginfo_amqp_exchange_class_setType,		ZEND_ACC_PUBLIC)
+
+	PHP_ME(amqp_exchange_class, getArgument,	arginfo_amqp_exchange_class_getArgument,	ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_exchange_class, getArguments,	arginfo_amqp_exchange_class_getArguments,	ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_exchange_class, setArgument,	arginfo_amqp_exchange_class_setArgument,	ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_exchange_class, setArguments,	arginfo_amqp_exchange_class_setArguments,	ZEND_ACC_PUBLIC)
 
 	PHP_ME(amqp_exchange_class, declare,		arginfo_amqp_exchange_class_declare,		ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_exchange_class, bind,			arginfo_amqp_exchange_class_bind,			ZEND_ACC_PUBLIC)
@@ -451,14 +504,15 @@ amqp_table_t *convert_zval_to_arguments(zval *zvalArguments)
 }
 
 PHP_INI_BEGIN()
-	PHP_INI_ENTRY("amqp.host",			DEFAULT_HOST,			PHP_INI_ALL, NULL)
-	PHP_INI_ENTRY("amqp.vhost",			DEFAULT_VHOST,			PHP_INI_ALL, NULL)
-	PHP_INI_ENTRY("amqp.port",			DEFAULT_PORT_STR,		PHP_INI_ALL, NULL)
-	PHP_INI_ENTRY("amqp.login",			DEFAULT_LOGIN,			PHP_INI_ALL, NULL)
-	PHP_INI_ENTRY("amqp.password",		DEFAULT_PASSWORD,		PHP_INI_ALL, NULL)
-	PHP_INI_ENTRY("amqp.no_ack",		DEFAULT_ACK,			PHP_INI_ALL, NULL)
-	PHP_INI_ENTRY("amqp.min_consume",	DEFAULT_MIN_CONSUME,	PHP_INI_ALL, NULL)
-	PHP_INI_ENTRY("amqp.max_consume",	DEFAULT_MAX_CONSUME,	PHP_INI_ALL, NULL)
+	PHP_INI_ENTRY("amqp.host",				DEFAULT_HOST,				PHP_INI_ALL, NULL)
+	PHP_INI_ENTRY("amqp.vhost",				DEFAULT_VHOST,				PHP_INI_ALL, NULL)
+	PHP_INI_ENTRY("amqp.port",				DEFAULT_PORT_STR,			PHP_INI_ALL, NULL)
+	PHP_INI_ENTRY("amqp.login",				DEFAULT_LOGIN,				PHP_INI_ALL, NULL)
+	PHP_INI_ENTRY("amqp.password",			DEFAULT_PASSWORD,			PHP_INI_ALL, NULL)
+	PHP_INI_ENTRY("amqp.auto_ack",			DEFAULT_AUTOACK,			PHP_INI_ALL, NULL)
+	PHP_INI_ENTRY("amqp.min_consume",		DEFAULT_MIN_CONSUME,		PHP_INI_ALL, NULL)
+	PHP_INI_ENTRY("amqp.max_consume",		DEFAULT_MAX_CONSUME,		PHP_INI_ALL, NULL)
+	PHP_INI_ENTRY("amqp.prefetch_count",	DEFAULT_PREFETCH_COUNT,		PHP_INI_ALL, NULL)
 PHP_INI_END()
 
 /* {{{ PHP_MINIT_FUNCTION
@@ -468,8 +522,12 @@ PHP_MINIT_FUNCTION(amqp)
 	zend_class_entry ce;
 
 	INIT_CLASS_ENTRY(ce, "AMQPConnection", amqp_connection_class_functions);
-	ce.create_object = amqp_ctor;
+	ce.create_object = amqp_connection_ctor;
 	amqp_connection_class_entry = zend_register_internal_class(&ce TSRMLS_CC);
+
+	INIT_CLASS_ENTRY(ce, "AMQPChannel", amqp_channel_class_functions);
+	ce.create_object = amqp_channel_ctor;
+	amqp_channel_class_entry = zend_register_internal_class(&ce TSRMLS_CC);
 
 	INIT_CLASS_ENTRY(ce, "AMQPQueue", amqp_queue_class_functions);
 	ce.create_object = amqp_queue_ctor;
@@ -485,11 +543,14 @@ PHP_MINIT_FUNCTION(amqp)
 	INIT_CLASS_ENTRY(ce, "AMQPConnectionException", NULL);
 	amqp_connection_exception_class_entry = zend_register_internal_class_ex(&ce, amqp_exception_class_entry, NULL TSRMLS_CC);
 
-	INIT_CLASS_ENTRY(ce, "AMQPExchangeException", NULL);
-	amqp_exchange_exception_class_entry = zend_register_internal_class_ex(&ce, amqp_exception_class_entry, NULL TSRMLS_CC);
+	INIT_CLASS_ENTRY(ce, "AMQPChannelException", NULL);
+	amqp_channel_exception_class_entry = zend_register_internal_class_ex(&ce, amqp_exception_class_entry, NULL TSRMLS_CC);
 
 	INIT_CLASS_ENTRY(ce, "AMQPQueueException", NULL);
 	amqp_queue_exception_class_entry = zend_register_internal_class_ex(&ce, amqp_exception_class_entry, NULL TSRMLS_CC);
+
+	INIT_CLASS_ENTRY(ce, "AMQPExchangeException", NULL);
+	amqp_exchange_exception_class_entry = zend_register_internal_class_ex(&ce, amqp_exception_class_entry, NULL TSRMLS_CC);
 
 	REGISTER_INI_ENTRIES();
 
@@ -499,7 +560,7 @@ PHP_MINIT_FUNCTION(amqp)
 	REGISTER_LONG_CONSTANT("AMQP_AUTODELETE",		AMQP_AUTODELETE,	CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("AMQP_INTERNAL",			AMQP_INTERNAL,		CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("AMQP_NOLOCAL",			AMQP_NOLOCAL,		CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("AMQP_NOACK",			AMQP_NOACK,			CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("AMQP_AUTOACK",			AMQP_AUTOACK,		CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("AMQP_IFEMPTY",			AMQP_IFEMPTY,		CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("AMQP_IFUNUSED",			AMQP_IFUNUSED,		CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("AMQP_MANDATORY",		AMQP_MANDATORY,		CONST_CS | CONST_PERSISTENT);

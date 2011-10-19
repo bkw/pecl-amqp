@@ -23,36 +23,16 @@
   +---------------------------------------------------------------------+
 */
 
-/* $Id$ */
+/* $Id: amqp_channel.h 305865 2010-12-01 01:30:56Z pdezwart $ */
 
-void amqp_queue_dtor(void *object TSRMLS_DC);
-zend_object_value amqp_queue_ctor(zend_class_entry *ce TSRMLS_DC);
 
-PHP_METHOD(amqp_queue_class, __construct);
+void amqp_channel_dtor(void *object TSRMLS_DC);
+zend_object_value amqp_channel_ctor(zend_class_entry *ce TSRMLS_DC);
 
-PHP_METHOD(amqp_queue_class, getName);
-PHP_METHOD(amqp_queue_class, setName);
-
-PHP_METHOD(amqp_queue_class, getFlags);
-PHP_METHOD(amqp_queue_class, setFlags);
-
-PHP_METHOD(amqp_queue_class, getArgument);
-PHP_METHOD(amqp_queue_class, getArguments);
-PHP_METHOD(amqp_queue_class, setArgument);
-PHP_METHOD(amqp_queue_class, setArguments);
-
-PHP_METHOD(amqp_queue_class, declare);
-PHP_METHOD(amqp_queue_class, bind);
-
-PHP_METHOD(amqp_queue_class, get);
-PHP_METHOD(amqp_queue_class, consume);
-PHP_METHOD(amqp_queue_class, ack);
-PHP_METHOD(amqp_queue_class, nack);
-PHP_METHOD(amqp_queue_class, purge);
-
-PHP_METHOD(amqp_queue_class, cancel);
-PHP_METHOD(amqp_queue_class, unbind);
-PHP_METHOD(amqp_queue_class, delete);
+PHP_METHOD(amqp_channel_class, __construct);
+PHP_METHOD(amqp_channel_class, isConnected);
+PHP_METHOD(amqp_channel_class, setPrefetchSize);
+PHP_METHOD(amqp_channel_class, setPrefetchCount);
 
 /*
 *Local variables:

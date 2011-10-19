@@ -126,7 +126,7 @@ extern zend_module_entry amqp_module_entry;
 #define AMQP_AUTODELETE		16
 #define AMQP_INTERNAL		32
 #define AMQP_NOLOCAL		64
-#define AMQP_NOACK			128
+#define AMQP_AUTOACK		128
 #define AMQP_IFEMPTY		256
 #define AMQP_IFUNUSED		528
 #define AMQP_MANDATORY		1024
@@ -148,27 +148,32 @@ char *stringify_bytes(amqp_bytes_t bytes);
 
 /* True global resources - no need for thread safety here */
 extern zend_class_entry *amqp_connection_class_entry;
+extern zend_class_entry *amqp_channel_class_entry;
 extern zend_class_entry *amqp_queue_class_entry;
 extern zend_class_entry *amqp_exchange_class_entry;
 extern zend_class_entry *amqp_exception_class_entry,
 	*amqp_connection_exception_class_entry,
+	*amqp_channel_exception_class_entry,
 	*amqp_exchange_exception_class_entry,
 	*amqp_queue_exception_class_entry;
 
 
-#define FRAME_MAX				131072	/* max length (size) of frame */
-#define HEADER_FOOTER_SIZE		8	   /*  7 bytes up front, then payload, then 1 byte footer */
-#define DEFAULT_PORT			5672	/* default AMQP port */
-#define DEFAULT_PORT_STR		"5672"
-#define DEFAULT_HOST			"localhost"
-#define DEFAULT_VHOST			"/"
-#define DEFAULT_LOGIN			"guest"
-#define DEFAULT_PASSWORD		"guest"
-#define DEFAULT_ACK				1
-#define DEFAULT_MIN_CONSUME		0
-#define DEFAULT_MAX_CONSUME		1
-#define AMQP_CHANNEL			1	   /* default channel number */
-#define AMQP_HEARTBEAT			0	   /* heartbeat */
+#define FRAME_MAX							131072		/* max length (size) of frame */
+#define HEADER_FOOTER_SIZE					8			/*  7 bytes up front, then payload, then 1 byte footer */
+#define AMQP_HEARTBEAT						0	   		/* heartbeat */
+
+#define DEFAULT_PORT						5672		/* default AMQP port */
+#define DEFAULT_PORT_STR					"5672"
+#define DEFAULT_HOST						"localhost"
+#define DEFAULT_VHOST						"/"
+#define DEFAULT_LOGIN						"guest"
+#define DEFAULT_PASSWORD					"guest"
+#define DEFAULT_AUTOACK						"1"			/* These are strings to facilitate setting default ini values */
+#define DEFAULT_MIN_CONSUME					"0"
+#define DEFAULT_MAX_CONSUME					"1"
+#define DEFAULT_PREFETCH_COUNT				"3"
+#define DEFAULT_CHANNELS_PER_CONNECTION 	255
+
 
 #define EMPTY_ARGUMENTS			{0, NULL};
 #define IS_PASSIVE(bitmask)		(AMQP_PASSIVE & bitmask) ? 1 : 0;
@@ -176,27 +181,57 @@ extern zend_class_entry *amqp_exception_class_entry,
 #define IS_EXCLUSIVE(bitmask)	(AMQP_EXCLUSIVE & bitmask) ? 1 : 0;
 #define IS_AUTODELETE(bitmask)	(AMQP_AUTODELETE & bitmask) ? 1 : 0;
 
-#define AMQP_SET_NAME(object, str) (object)->name_len = strlen(str) >= sizeof((object)->name) ? sizeof((object)->name) - 1 : strlen(str); \
-			strncpy((object)->name, name, (object)->name_len); \
-			(object)->name[(object)->name_len] = '\0';
+#define AMQP_SET_NAME(object, str) \
+	(object)->name_len = strlen(str) >= sizeof((object)->name) ? sizeof((object)->name) - 1 : strlen(str); \
+	strncpy((object)->name, name, (object)->name_len); \
+	(object)->name[(object)->name_len] = '\0';
 
-#define AMQP_SET_TYPE(object, str) (object)->type_len = strlen(str) >= sizeof((object)->type) ? sizeof((object)->type) - 1 : strlen(str); \
-			strncpy((object)->type, type, (object)->type_len); \
-			(object)->type[(object)->type_len] = '\0';
+#define AMQP_SET_TYPE(object, str) \
+	(object)->type_len = strlen(str) >= sizeof((object)->type) ? sizeof((object)->type) - 1 : strlen(str); \
+	strncpy((object)->type, type, (object)->type_len); \
+	(object)->type[(object)->type_len] = '\0';
 
-#define AMQP_EFREE_ARGUMENTS(object) if (object->entries) \
-				efree(object->entries); \
-			efree(object);
+#define AMQP_EFREE_ARGUMENTS(object) \
+	if ((object)->entries) \
+		efree(object->entries); \
+	efree(object);
 
+#define AMQP_GET_CHANNEL(object) \
+ 	(amqp_channel_object *) zend_object_store_get_object((object)->channel TSRMLS_CC); \
+
+#define AMQP_GET_CONNECTION(object) \
+ 	(amqp_connection_object *) zend_object_store_get_object((object)->connection TSRMLS_CC); \
+
+#define AMQP_VERIFY_CHANNEL(channel, exception, error) \
+	if ((channel)->is_connected != '\1') { \
+		char verify_channel_tmp[255]; \
+		snprintf(verify_channel_tmp, 255, "%s. No channel available.", error); \
+		zend_throw_exception((exception), verify_channel_tmp, 0 TSRMLS_CC); \
+		return; \
+	} \
+
+#define AMQP_VERIFY_CONNECTION(connection, exception, error) \
+	if ((connection)->is_connected != '\1') { \
+		char verify_connection_tmp[255]; \
+		snprintf(verify_connection_tmp, 255, "%s. No conection available.", error); \
+		zend_throw_exception((exception), verify_connection_tmp, 0 TSRMLS_CC); \
+		return; \
+	} \
+	
 
 /* If you declare any globals in php_amqp.h uncomment this:
  ZEND_DECLARE_MODULE_GLOBALS(amqp)
 */
 
+/* Storage for channels per connection */
+typedef struct _amqp_ring_buffer {
+	int size;
+	int *entries;
+} amqp_ring_buffer;
+
 typedef struct _amqp_connection_object {
 	zend_object zo;
 	char is_connected;
-	char is_channel_connected;
 	char *login;
 	int char_len;
 	char *password;
@@ -207,12 +242,21 @@ typedef struct _amqp_connection_object {
 	int vhost_len;
 	int port;
 	int fd;
-	amqp_connection_state_t conn;
+	amqp_connection_state_t connection_state;
 } amqp_connection_object;
+
+typedef struct _amqp_channel_object {
+	zend_object zo;
+	zval *connection;
+	int channel_id;
+	char is_connected;
+	int prefetch_count;
+	int prefetch_size;
+} amqp_channel_object;
 
 typedef struct _amqp_queue_object {
 	zend_object zo;
-	zval *cnn;
+	zval *channel;
 	char is_connected;
 	char name[255];
 	int name_len;
@@ -228,7 +272,7 @@ typedef struct _amqp_queue_object {
 
 typedef struct _amqp_exchange_object {
 	zend_object zo;
-	zval *cnn;
+	zval *channel;
 	char is_connected;
 	char name[255];
 	int name_len;
