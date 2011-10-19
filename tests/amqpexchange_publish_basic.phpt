@@ -10,8 +10,11 @@ $cnn->connect();
 $ch = new AMQPChannel($cnn);
 
 $ex = new AMQPExchange($ch);
-$ex->declare('exchange-' . time());
+$ex->setName("exchange-" . time());
+$ex->setType(AMQP_EX_TYPE_FANOUT);
+$ex->declare();
 echo $ex->publish('message', 'routing.key') ? 'true' : 'false';
+$ex->delete();
 ?>
 --EXPECT--
 true

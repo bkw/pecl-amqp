@@ -9,13 +9,14 @@ $cnn->connect();
 $ch = new AMQPChannel($cnn);
 
 $ex = new AMQPExchange($ch);
-$exName = 'exchange-' . time();
-$qName = 'queue-' . time();
-$ex->declare($exName, AMQP_EX_TYPE_DIRECT);
+$ex->setName('exchange-' . time());
+$ex->setType(AMQP_EX_TYPE_DIRECT);
+$ex->declare();
 
 $queue = new AMQPQueue($ch);
-$queue->declare($qName);
-var_dump($queue->bind($exName, 'routing.key'));
+$queue->setName("queue-" . time());
+$queue->declare();
+var_dump($queue->bind($ex->getName(), 'routing.key'));
 ?>
 --EXPECT--
 bool(true)

@@ -10,7 +10,10 @@ $cnn->connect();
 $ch = new AMQPChannel($cnn);
 
 $ex = new AMQPExchange($ch);
-echo $ex->declare('exchange-' . time()) ? 'true' : 'false';
+$ex->setName("exchange-" . time());
+$ex->setType(AMQP_EX_TYPE_FANOUT);
+echo $ex->declare() ? 'true' : 'false';
+$ex->delete();
 ?>
 --EXPECT--
 true

@@ -11,15 +11,17 @@ $ch = new AMQPChannel($cnn);
 
 // Declare a new exchange
 $ex = new AMQPExchange($ch);
-$ex->declare('exchange1', AMQP_EX_TYPE_FANOUT);
+$ex->setName('exchange1');
+$ex->setType(AMQP_EX_TYPE_FANOUT);
+$ex->declare();
 
 // Create a new queue
 $q = new AMQPQueue($ch);
-$queueName = 'queue1' . time();
-$q->declare($queueName);
+$q->setName('queue1' . time());
+$q->declare();
 
 // Bind it on the exchange to routing.key
-$ex->bind($queueName, 'routing.*');
+$ex->bind($q->getName(), 'routing.*');
 
 // Publish a message to the exchange with a routing key
 $ex->publish('message', 'routing.1');
@@ -27,12 +29,7 @@ $ex->publish('message2', 'routing.2');
 $ex->publish('message3', 'routing.3');
 
 // Read from the queue
-$options = array(
- 'min' => 1,
- 'max' => 10,
- 'ack' => false
-);
-$msgs = $q->consume($options);
+$msgs = $q->consume(1, 3, AMQP_AUTOACK);
 
 foreach ($msgs as $msg) {
     echo $msg["message_body"] . "\n";
