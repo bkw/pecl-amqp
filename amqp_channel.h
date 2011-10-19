@@ -33,6 +33,7 @@ PHP_METHOD(amqp_channel_class, __construct);
 PHP_METHOD(amqp_channel_class, isConnected);
 PHP_METHOD(amqp_channel_class, setPrefetchSize);
 PHP_METHOD(amqp_channel_class, setPrefetchCount);
+PHP_METHOD(amqp_channel_class, qos);
 
 /*
 *Local variables:

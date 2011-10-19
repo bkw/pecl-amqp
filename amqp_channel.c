@@ -162,7 +162,7 @@ PHP_METHOD(amqp_channel_class, setPrefetchCount)
 	long prefetch_count;
 
 	/* Get the vhost from the method params */
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id, amqp_channel_class_entry, &prefetch_count) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Ol", &id, amqp_channel_class_entry, &prefetch_count) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -202,7 +202,7 @@ PHP_METHOD(amqp_channel_class, setPrefetchSize)
 	long prefetch_size;
 
 	/* Get the vhost from the method params */
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id, amqp_channel_class_entry, &prefetch_size) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Ol", &id, amqp_channel_class_entry, &prefetch_size) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -232,18 +232,18 @@ PHP_METHOD(amqp_channel_class, setPrefetchSize)
 /* }}} */
 
 
-
-/* {{{ proto amqp::setPrefetchSize(long size)
+/* {{{ proto amqp::qos(long size, long count)
 set the number of prefetches */
-PHP_METHOD(amqp_channel_class, setPrefetches)
+PHP_METHOD(amqp_channel_class, qos)
 {
 	zval *id;
 	amqp_channel_object *channel;
 	amqp_connection_object *connection;
 	long prefetch_size;
+	long prefetch_count;
 
 	/* Get the vhost from the method params */
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id, amqp_channel_class_entry, &prefetch_size) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oll", &id, amqp_channel_class_entry, &prefetch_size, &prefetch_count) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -251,11 +251,11 @@ PHP_METHOD(amqp_channel_class, setPrefetches)
 	channel = (amqp_channel_object *)zend_object_store_get_object(id TSRMLS_CC);
 	
 	/* Set the prefetch size - the implication is to disable the count */
-	channel->prefetch_count = 0;
 	channel->prefetch_size = prefetch_size;
+	channel->prefetch_count = prefetch_count;
 	
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_channel_exception_class_entry, "Could not set prefetch size.");
+	AMQP_VERIFY_CONNECTION(connection, amqp_channel_exception_class_entry, "Could not set qos parameters.");
 	
 	/* If we are already connected, set the new prefetch count */
 	if (channel->is_connected) {
@@ -271,7 +271,6 @@ PHP_METHOD(amqp_channel_class, setPrefetches)
 	RETURN_TRUE;
 }
 /* }}} */
-
 
 /*
 *Local variables:
