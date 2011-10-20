@@ -95,12 +95,7 @@ PHP_METHOD(amqp_queue_class, __construct)
 	amqp_queue_object *queue;
 	amqp_channel_object *channel;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, amqp_queue_class_entry, &channelObj) == FAILURE) {
-		return;
-	}
-
-	if (!instanceof_function(Z_OBJCE_P(channelObj), amqp_channel_class_entry TSRMLS_CC)) {
-		zend_throw_exception(amqp_queue_exception_class_entry, "The first parameter must be and instance of AMQPChannel.", 0 TSRMLS_CC);
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "OO", &id, amqp_queue_class_entry, &channelObj, amqp_channel_class_entry) == FAILURE) {
 		return;
 	}
 

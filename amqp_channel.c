@@ -81,7 +81,7 @@ PHP_METHOD(amqp_channel_class, __construct)
 	amqp_rpc_reply_t res;
 
 	/* Parse out the method parameters */
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, amqp_channel_class_entry, &connObj) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "OO", &id, amqp_channel_class_entry, &connObj, amqp_connection_class_entry) == FAILURE) {
 		return;
 	}
 

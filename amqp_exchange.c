@@ -87,7 +87,7 @@ PHP_METHOD(amqp_exchange_class, __construct)
 	amqp_exchange_object *exchange;
 	amqp_channel_object *channel;
 	
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, amqp_exchange_class_entry, &channelObj, amqp_channel_class_entry) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "OO", &id, amqp_exchange_class_entry, &channelObj, amqp_channel_class_entry) == FAILURE) {
 		return;
 	}
 	
