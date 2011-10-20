@@ -6,14 +6,29 @@ AMQPQueue::get() doesn't return the message
 <?php
 $cnn = new AMQPConnection();
 $cnn->connect();
-$ex = new AMQPExchange($cnn);
-$ex->declare('exchange11', AMQP_EX_TYPE_FANOUT);
-$q = new AMQPQueue($cnn, 'queue5');
+
+$ch = new AMQPChannel($cnn);
+
+$ex = new AMQPExchange($ch);
+$ex->setName("exchange-".time());
+$ex->setType(AMQP_EX_TYPE_FANOUT);
+$ex->declare();
+
+$q = new AMQPQueue($ch);
+$q->setName('queue-'.time());
+$q->setFlags(AMQP_DURABLE);
 $q->declare();
-$ex->bind('queue5', 'routing.key');
+
+$q->bind($ex->getName(), 'routing.key');
+
 $ex->publish('message', 'routing.key');
+
 $msg = $q->get();
+
 echo "message received from get: " . print_r($msg, true) . "\n";
+
+$q->delete();
+$ex->delete();
 ?>
 --EXPECTF--
 message received from get: Array

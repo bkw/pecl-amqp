@@ -9,12 +9,14 @@ $lServer['port'] = '5672';
 $lServer['vhost'] = '/test';
 $lServer['user'] = 'test';
 $lServer['password'] = 'test';
+
 try {
-    $conn = new AMQPConnection( $lServer );
+    $conn = new AMQPConnection($lServer);
+	$conn->connect();
     echo "No exception thrown\n";
 } catch (Exception $e) {
-    echo "Exception message: " . $e->getMessage() . "\n";
+    echo $e->getMessage();
 }
 ?>
 --EXPECT--
-No exception thrown
+Socket error: could not connect to host.

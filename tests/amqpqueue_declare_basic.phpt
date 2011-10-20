@@ -17,6 +17,9 @@ $queue = new AMQPQueue($ch);
 $queue->setName("queue-" . time());
 $queue->declare();
 var_dump($queue->bind($ex->getName(), 'routing.key'));
+
+$queue->delete();
+$ex->delete();
 ?>
 --EXPECT--
 bool(true)

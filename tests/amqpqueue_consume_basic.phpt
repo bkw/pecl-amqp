@@ -34,6 +34,9 @@ $msgs = $q->consume(1, 3, AMQP_AUTOACK);
 foreach ($msgs as $msg) {
     echo $msg["message_body"] . "\n";
 }
+
+$ex->delete();
+$q->delete();
 ?>
 --EXPECT--
 message

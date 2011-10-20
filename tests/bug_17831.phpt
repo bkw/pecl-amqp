@@ -6,13 +6,20 @@ Segfault when publishing to non existent exchange
 <?php
 $c = new AMQPConnection();
 $c->connect();
-$ex = new AMQPExchange($c, "foo");
+
+$ch = new AMQPChannel($c);
+
+$ex = new AMQPExchange($ch);
+$ex->setName("exchange-" . time());
+$ex->setType(AMQP_EX_TYPE_FANOUT);
+$ex->declare();
 try {
     $ex->publish("data", "bar");
     echo "Success\n";
 } catch (Exception $e) {
     echo "Success\n";
 }
+$ex->delete();
 ?>
 --EXPECT--
 Success

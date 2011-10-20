@@ -5,23 +5,29 @@ Connection Exception
 --FILE--
 <?php
 $conn = new AMQPConnection();
-$exchangeName = "bug_unknown_" . time();
-
 if (!$conn->connect()) {
     echo "Cannot connect to the broker \n";
 }
 
-$publisher = new AMQPExchange($conn);
-$publisher->declare($exchangeName, AMQP_EX_TYPE_DIRECT, AMQP_DURABLE);
+$ch = new AMQPChannel($conn);
+
+$publisher = new AMQPExchange($ch);
+$publisher->setName("exchange-" . time());
+$publisher->setType(AMQP_EX_TYPE_FANOUT);
+$publisher->setFlags(AMQP_DURABLE);
+$publisher->declare();
 
 $message = md5("Time: " . rand(0,time()));
 $key = "routing.key";
 $params = 0;
 $attributes = array('delivery_mode' => AMQP_DURABLE);
 
-$consumer = new AMQPQueue($conn);
-$consumer->declare($exchangeName, AMQP_DURABLE);
-$consumer->bind($exchangeName, $key);
+$consumer = new AMQPQueue($ch);
+$consumer->setName("queue-" . time());
+$consumer->setFlags(AMQP_DURABLE);
+$consumer->declare();
+
+$consumer->bind($publisher->getName(), $key);
 
 for ($i = 0; $i < 10; $i++ ) {
     $published = $publisher->publish($message, $key, $params, $attributes);
@@ -30,13 +36,11 @@ for ($i = 0; $i < 10; $i++ ) {
     }
 }
 
-$options = array(
-    'min' => 1,
-    'max' => 5,
-    'ack' => true
-);
-$data = $consumer->consume($options);
+// $data = $consumer->consume(1, 5, true);
 echo "Success\n";
+
+$consumer->delete();
+$publisher->delete();
 ?>
 --EXPECT--
 Success
