@@ -380,7 +380,16 @@ PHP_METHOD(amqp_queue_class, declare)
 	
 	amqp_table_t *arguments = convert_zval_to_arguments(queue->arguments);
 
-	amqp_queue_declare(connection->connection_resource->connection_state, channel->channel_id, amqp_cstring_bytes(queue->name), queue->passive, queue->durable, queue->exclusive, queue->auto_delete, *arguments);
+	amqp_queue_declare(
+		connection->connection_resource->connection_state,
+		channel->channel_id,
+		amqp_cstring_bytes(queue->name),
+		queue->passive,
+		queue->durable,
+		queue->exclusive,
+		queue->auto_delete,
+		*arguments
+	);
 	
 	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(connection->connection_resource->connection_state); 
 	
@@ -513,7 +522,16 @@ PHP_METHOD(amqp_queue_class, get)
 
 	amqp_table_t *arguments = convert_zval_to_arguments(queue->arguments);
 
-	amqp_basic_consume(connection->connection_resource->connection_state, channel->channel_id, amqp_cstring_bytes(queue->name), AMQP_EMPTY_BYTES, 0, (AMQP_AUTOACK & flags) ? 1 : 0, queue->exclusive, *arguments);
+	amqp_basic_consume(
+		connection->connection_resource->connection_state,
+		channel->channel_id,
+		amqp_cstring_bytes(queue->name),
+		AMQP_EMPTY_BYTES,					/* Consumer tag */
+		0, 									/* No local */
+		(AMQP_AUTOACK & flags) ? 1 : 0,		/* no_ack, aka AUTOACK */
+		queue->exclusive,
+		*arguments
+	);
 
 	AMQP_EFREE_ARGUMENTS(arguments);
 
@@ -1095,6 +1113,7 @@ PHP_METHOD(amqp_queue_class, consume)
 
 		/* add message body to message */
 		add_assoc_stringl_ex(message, "message_body", sizeof("message_body"), buf, body_target, 1);
+		
 		/* add message to return value */
 		add_index_zval(return_value, i, message);
 		
@@ -1129,6 +1148,7 @@ PHP_METHOD(amqp_queue_class, ack)
 	}
 
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
+	
 	/* Check that the given connection has a channel, before trying to pull the connection off the stack */
 	if (queue->is_connected != '\1') {
 		zend_throw_exception(amqp_queue_exception_class_entry, "Could not ack message. No connection available.", 0 TSRMLS_CC);
@@ -1148,7 +1168,8 @@ PHP_METHOD(amqp_queue_class, ack)
 		connection->connection_resource->connection_state,
 		channel->channel_id,
 		AMQP_BASIC_ACK_METHOD,
-		&s);
+		&s
+	);
 
 	if (res) {
 		channel->is_connected = 0;
@@ -1248,7 +1269,6 @@ PHP_METHOD(amqp_queue_class, purge)
 	
 	connection = AMQP_GET_CONNECTION(channel);
 	AMQP_VERIFY_CONNECTION(connection, amqp_queue_exception_class_entry, "Could not purge queue.");
-	
 
 	s.ticket		= 0;
 	s.queue.len		= queue->name_len;
