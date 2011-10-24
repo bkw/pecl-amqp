@@ -282,6 +282,141 @@ PHP_METHOD(amqp_channel_class, qos)
 }
 /* }}} */
 
+
+/* {{{ proto amqp::startTransaction()
+start a transaction on the given channel */
+PHP_METHOD(amqp_channel_class, startTransaction)
+{
+	zval *id;
+	amqp_channel_object *channel;
+	amqp_connection_object *connection;
+
+	/* Get the vhost from the method params */
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_channel_class_entry) == FAILURE) {
+		return;
+	}
+
+	/* Get the channel object out of the store */
+	channel = (amqp_channel_object *)zend_object_store_get_object(id TSRMLS_CC);
+	
+	connection = AMQP_GET_CONNECTION(channel);
+	AMQP_VERIFY_CONNECTION(connection, amqp_channel_exception_class_entry, "Could not start the transaction.");
+	
+	amqp_tx_select_t s;
+	amqp_method_number_t select_ok = AMQP_TX_SELECT_OK_METHOD;
+
+	amqp_rpc_reply_t res = (amqp_rpc_reply_t) amqp_simple_rpc(
+		connection->connection_resource->connection_state,
+		channel->channel_id,
+		AMQP_TX_SELECT_METHOD,
+		&select_ok,
+		&s
+	);
+
+	if (res.reply_type != AMQP_RESPONSE_NORMAL) {
+		char str[256];
+		char **pstr = (char **)&str;
+		amqp_error(res, pstr);
+
+		channel->is_connected = 0;
+		zend_throw_exception(amqp_queue_exception_class_entry, *pstr, 0 TSRMLS_CC);
+		return;
+	}
+		
+	RETURN_TRUE;
+}
+/* }}} */
+
+
+/* {{{ proto amqp::startTransaction()
+start a transaction on the given channel */
+PHP_METHOD(amqp_channel_class, commitTransaction)
+{
+	zval *id;
+	amqp_channel_object *channel;
+	amqp_connection_object *connection;
+
+	/* Get the vhost from the method params */
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_channel_class_entry) == FAILURE) {
+		return;
+	}
+
+	/* Get the channel object out of the store */
+	channel = (amqp_channel_object *)zend_object_store_get_object(id TSRMLS_CC);
+	
+	connection = AMQP_GET_CONNECTION(channel);
+	AMQP_VERIFY_CONNECTION(connection, amqp_channel_exception_class_entry, "Could not start the transaction.");
+	
+	amqp_tx_commit_t s;
+	amqp_method_number_t commit_ok = AMQP_TX_COMMIT_OK_METHOD;
+
+	amqp_rpc_reply_t res = (amqp_rpc_reply_t) amqp_simple_rpc(
+		connection->connection_resource->connection_state,
+		channel->channel_id,
+		AMQP_TX_COMMIT_METHOD,
+		&commit_ok,
+		&s
+	);
+
+	if (res.reply_type != AMQP_RESPONSE_NORMAL) {
+		char str[256];
+		char **pstr = (char **)&str;
+		amqp_error(res, pstr);
+
+		channel->is_connected = 0;
+		zend_throw_exception(amqp_queue_exception_class_entry, *pstr, 0 TSRMLS_CC);
+		return;
+	}
+		
+	RETURN_TRUE;
+}
+/* }}} */
+
+/* {{{ proto amqp::startTransaction()
+start a transaction on the given channel */
+PHP_METHOD(amqp_channel_class, rollbackTransaction)
+{
+	zval *id;
+	amqp_channel_object *channel;
+	amqp_connection_object *connection;
+
+	/* Get the vhost from the method params */
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_channel_class_entry) == FAILURE) {
+		return;
+	}
+
+	/* Get the channel object out of the store */
+	channel = (amqp_channel_object *)zend_object_store_get_object(id TSRMLS_CC);
+	
+	connection = AMQP_GET_CONNECTION(channel);
+	AMQP_VERIFY_CONNECTION(connection, amqp_channel_exception_class_entry, "Could not start the transaction.");
+	
+	amqp_tx_rollback_t s;
+	amqp_method_number_t rollback_ok = AMQP_TX_ROLLBACK_OK_METHOD;
+
+	amqp_rpc_reply_t res = (amqp_rpc_reply_t) amqp_simple_rpc(
+		connection->connection_resource->connection_state,
+		channel->channel_id,
+		AMQP_TX_ROLLBACK_METHOD,
+		&rollback_ok,
+		&s
+	);
+
+	if (res.reply_type != AMQP_RESPONSE_NORMAL) {
+		char str[256];
+		char **pstr = (char **)&str;
+		amqp_error(res, pstr);
+
+		channel->is_connected = 0;
+		zend_throw_exception(amqp_queue_exception_class_entry, *pstr, 0 TSRMLS_CC);
+		return;
+	}
+		
+	RETURN_TRUE;
+}
+/* }}} */
+
+
 /*
 *Local variables:
 *tab-width: 4

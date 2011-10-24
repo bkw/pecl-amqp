@@ -33,6 +33,10 @@ PHP_METHOD(amqp_channel_class, setPrefetchSize);
 PHP_METHOD(amqp_channel_class, setPrefetchCount);
 PHP_METHOD(amqp_channel_class, qos);
 
+PHP_METHOD(amqp_channel_class, startTransaction);
+PHP_METHOD(amqp_channel_class, commitTransaction);
+PHP_METHOD(amqp_channel_class, rollbackTransaction);
+
 /*
 *Local variables:
 *tab-width: 4
