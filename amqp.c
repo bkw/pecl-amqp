@@ -536,7 +536,7 @@ amqp_table_t *convert_zval_to_arguments(zval *zvalArguments)
 PHP_INI_BEGIN()
 	PHP_INI_ENTRY("amqp.host",				DEFAULT_HOST,				PHP_INI_ALL, NULL)
 	PHP_INI_ENTRY("amqp.vhost",				DEFAULT_VHOST,				PHP_INI_ALL, NULL)
-	PHP_INI_ENTRY("amqp.port",				DEFAULT_PORT_STR,			PHP_INI_ALL, NULL)
+	PHP_INI_ENTRY("amqp.port",				DEFAULT_PORT,				PHP_INI_ALL, NULL)
 	PHP_INI_ENTRY("amqp.login",				DEFAULT_LOGIN,				PHP_INI_ALL, NULL)
 	PHP_INI_ENTRY("amqp.password",			DEFAULT_PASSWORD,			PHP_INI_ALL, NULL)
 	PHP_INI_ENTRY("amqp.auto_ack",			DEFAULT_AUTOACK,			PHP_INI_ALL, NULL)
@@ -549,6 +549,9 @@ PHP_INI_END()
 */
 PHP_MINIT_FUNCTION(amqp)
 {
+	/* Set up the connection resource */
+	le_amqp_connection_resource = zend_register_list_destructors_ex(NULL, NULL, PHP_AMQP_CONNECTION_RES_NAME, module_number);
+	
 	zend_class_entry ce;
 
 	INIT_CLASS_ENTRY(ce, "AMQPConnection", amqp_connection_class_functions);

@@ -52,16 +52,19 @@ void php_amqp_connect(amqp_connection_object *connection TSRMLS_DC)
 	char ** pstr = (char **) &str;
 	void * old_handler;
 
+	/* Pull the connection resource out for easy access */
+	amqp_connection_resource *resource = connection->connection_resource;
+
 	/* create the connection */
-	connection->connection_state = amqp_new_connection();
+	resource->connection_state = amqp_new_connection();
 
-	connection->fd = amqp_open_socket(connection->host, connection->port);
+	resource->fd = amqp_open_socket(connection->host, connection->port);
 
-	if (connection->fd < 1) {
+	if (resource->fd < 1) {
 		/* Start ignoring SIGPIPE */
 		old_handler = signal(SIGPIPE, SIG_IGN);
 
-		amqp_destroy_connection(connection->connection_state);
+		amqp_destroy_connection(resource->connection_state);
 
 		/* End ignoring of SIGPIPEs */
 		signal(SIGPIPE, old_handler);
@@ -69,11 +72,10 @@ void php_amqp_connect(amqp_connection_object *connection TSRMLS_DC)
 		zend_throw_exception(amqp_connection_exception_class_entry, "Socket error: could not connect to host.", 0 TSRMLS_CC);
 		return;
 	}
-	connection->is_connected = '\1';
 
-	amqp_set_sockfd(connection->connection_state, connection->fd);
+	amqp_set_sockfd(resource->connection_state, resource->fd);
 
-	amqp_rpc_reply_t x = amqp_login(connection->connection_state, connection->vhost, 0, FRAME_MAX, AMQP_HEARTBEAT, AMQP_SASL_METHOD_PLAIN, connection->login, connection->password);
+	amqp_rpc_reply_t x = amqp_login(resource->connection_state, connection->vhost, 0, FRAME_MAX, AMQP_HEARTBEAT, AMQP_SASL_METHOD_PLAIN, connection->login, connection->password);
 
 	if (x.reply_type != AMQP_RESPONSE_NORMAL) {
 		amqp_error(x, pstr);
@@ -91,6 +93,10 @@ void php_amqp_connect(amqp_connection_object *connection TSRMLS_DC)
 void php_amqp_disconnect(amqp_connection_object *connection)
 {
 	void * old_handler;
+	
+	/* Pull the connection resource out for easy access */
+	amqp_connection_resource *resource = connection->connection_resource;
+	
 	/*
 	If we are trying to close the connection and the connection already closed, it will throw
 	SIGPIPE, which is fine, so ignore all SIGPIPES
@@ -103,20 +109,64 @@ void php_amqp_disconnect(amqp_connection_object *connection)
 		/* TODO: disconnect from all channels */
 		// amqp_channel_close(connection->connection_state, channel->channel_id, AMQP_REPLY_SUCCESS);
 	}
+
+	if (resource->connection_state && connection->is_connected == '\1') {
+		amqp_connection_close(resource->connection_state, AMQP_REPLY_SUCCESS);
+		amqp_destroy_connection(resource->connection_state);
+	}
+
 	connection->is_connected = '\0';
 
-	if (connection->connection_state && connection->is_connected == '\1') {
-		amqp_connection_close(connection->connection_state, AMQP_REPLY_SUCCESS);
-		amqp_destroy_connection(connection->connection_state);
-	}
-	
-	connection->is_connected = '\0';
-	if (connection->fd) {
-		close(connection->fd);
+	if (resource->fd) {
+		close(resource->fd);
 	}
 
 	/* End ignoring of SIGPIPEs */
 	signal(SIGPIPE, old_handler);
+	
+	return;
+}
+
+int get_next_available_channel(amqp_connection_object *connection, amqp_channel_object *channel) {
+	/* Pull out the ring buffer for ease of use */
+	amqp_connection_resource *resource = connection->connection_resource;
+	
+	/* Check if there are any open slots */
+	if (resource->used_slots >= DEFAULT_CHANNELS_PER_CONNECTION) {
+		return -1;
+	}
+	
+	/* Go through the slots looking for an opening */
+	int slot = 1;
+	for (; slot < DEFAULT_CHANNELS_PER_CONNECTION; slot++) {
+		if (resource->slots[slot] == 0) {
+			/* Yay! we found a slot. Store the channel for later (disconnect needs to clean up connected channels) */
+			resource->slots[slot] = channel;
+			resource->used_slots++;
+			
+			/* Return the slot ID back so the channel can use it */
+			return slot;
+		}
+	}
+	
+	return -1;
+}
+
+void remove_channel_from_connection(amqp_connection_object *connection, amqp_channel_object *channel) {
+	/* Pull out the ring buffer for ease of use */
+	amqp_connection_resource *resource = connection->connection_resource;
+	
+	/* Go through the slots looking for an opening */
+	int slot = 1;
+	for (; slot < DEFAULT_CHANNELS_PER_CONNECTION; slot++) {
+		if (resource->slots[slot] == channel) {
+			/* Yay! we found a slot. Store the channel for later (disconnect needs to clean up connected channels) */
+			resource->slots[slot] = 0;
+			resource->used_slots--;
+			
+			return;
+		}
+	}
 	
 	return;
 }
@@ -144,22 +194,37 @@ void amqp_connection_dtor(void *object TSRMLS_DC)
 		efree(ob->password);
 	}
 
+	if (ob->connection_resource) {
+		if (ob->connection_resource->slots) {
+			efree(ob->connection_resource->slots);
+		}
+		efree(ob->connection_resource);
+	}
+
 	zend_object_std_dtor(&ob->zo TSRMLS_CC);
 
 	efree(object);
-
 }
 
 zend_object_value amqp_connection_ctor(zend_class_entry *ce TSRMLS_DC)
 {
 	zend_object_value new_value;
-	amqp_connection_object* obj = (amqp_connection_object*)emalloc(sizeof(amqp_connection_object));
 
-	memset(obj, 0, sizeof(amqp_connection_object));
+	amqp_connection_object* connection = (amqp_connection_object*)emalloc(sizeof(amqp_connection_object));
+	memset(connection, 0, sizeof(amqp_connection_object));
 
-	zend_object_std_init(&obj->zo, ce TSRMLS_CC);
+	zend_object_std_init(&connection->zo, ce TSRMLS_CC);
 
-	new_value.handle = zend_objects_store_put(obj, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t)amqp_connection_dtor, NULL TSRMLS_CC);
+	/* Allocate space for the connection resource */
+	connection->connection_resource = (amqp_connection_resource *)emalloc(sizeof(amqp_connection_resource));
+	memset(connection->connection_resource, 0, sizeof(amqp_connection_resource));
+	
+	/* Allocate space for the channel slots in the ring buffer */
+	connection->connection_resource->slots = (amqp_channel_object **)ecalloc(DEFAULT_CHANNELS_PER_CONNECTION, sizeof(amqp_channel_object*));
+	/* Initialize all the data */
+	connection->connection_resource->used_slots = 0;
+
+	new_value.handle = zend_objects_store_put(connection, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t)amqp_connection_dtor, NULL TSRMLS_CC);
 	new_value.handlers = zend_get_std_object_handlers();
 
 	return new_value;
@@ -182,7 +247,11 @@ PHP_METHOD(amqp_connection_class, __construct)
 		return;
 	}
 
+	/* Pull the connection off of the store */
 	connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
+	
+	/* Put the resource in the resource manager */
+	// zend_list_insert(connection->connection_resource, le_amqp_connection_resource);
 
 	/* Pull the login out of the $params array */
 	zdata = NULL;
@@ -191,14 +260,14 @@ PHP_METHOD(amqp_connection_class, __construct)
 	}
 	/* Validate the given login */
 	if (zdata && Z_STRLEN_PP(zdata) > 0) {
-		if (Z_STRLEN_PP(zdata) < 32) {
+		if (Z_STRLEN_PP(zdata) < 128) {
 			connection->login = estrndup(Z_STRVAL_PP(zdata), Z_STRLEN_PP(zdata));
 		} else {
-			zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'login' exceeds 32 character limit.", 0 TSRMLS_CC);
+			zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'login' exceeds 128 character limit.", 0 TSRMLS_CC);
 			return;
 		}
 	} else {
-		connection->login = estrndup(INI_STR("amqp.login"), strlen(INI_STR("amqp.login")) > 32 ? 32 : strlen(INI_STR("amqp.login")));
+		connection->login = estrndup(INI_STR("amqp.login"), strlen(INI_STR("amqp.login")) > 128 ? 128 : strlen(INI_STR("amqp.login")));
 	}
 	/* @TODO: write a macro to reduce code duplication */
 
@@ -209,14 +278,14 @@ PHP_METHOD(amqp_connection_class, __construct)
 	}
 	/* Validate the given password */
 	if (zdata && Z_STRLEN_PP(zdata) > 0) {
-		if (Z_STRLEN_PP(zdata) < 32) {
+		if (Z_STRLEN_PP(zdata) < 128) {
 			connection->password = estrndup(Z_STRVAL_PP(zdata), Z_STRLEN_PP(zdata));
 		} else {
-			zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'password' exceeds 32 character limit.", 0 TSRMLS_CC);
+			zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'password' exceeds 128 character limit.", 0 TSRMLS_CC);
 			return;
 		}
 	} else {
-		connection->password = estrndup(INI_STR("amqp.password"), strlen(INI_STR("amqp.password")) > 32 ? 32 : strlen(INI_STR("amqp.password")));
+		connection->password = estrndup(INI_STR("amqp.password"), strlen(INI_STR("amqp.password")) > 128 ? 128 : strlen(INI_STR("amqp.password")));
 	}
 
 	/* Pull the host out of the $params array */
@@ -226,14 +295,14 @@ PHP_METHOD(amqp_connection_class, __construct)
 	}
 	/* Validate the given host */
 	if (zdata && Z_STRLEN_PP(zdata) > 0) {
-		if (Z_STRLEN_PP(zdata) < 32) {
+		if (Z_STRLEN_PP(zdata) < 128) {
 			connection->host = estrndup(Z_STRVAL_PP(zdata), Z_STRLEN_PP(zdata));
 		} else {
-			zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'host' exceeds 32 character limit.", 0 TSRMLS_CC);
+			zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'host' exceeds 128 character limit.", 0 TSRMLS_CC);
 			return;
 		}
 	} else {
-		connection->host = estrndup(INI_STR("amqp.host"), strlen(INI_STR("amqp.host")) > 32 ? 32 : strlen(INI_STR("amqp.host")));
+		connection->host = estrndup(INI_STR("amqp.host"), strlen(INI_STR("amqp.host")) > 128 ? 128 : strlen(INI_STR("amqp.host")));
 	}
 
 	/* Pull the vhost out of the $params array */
@@ -243,14 +312,14 @@ PHP_METHOD(amqp_connection_class, __construct)
 	}
 	/* Validate the given vhost */
 	if (zdata && Z_STRLEN_PP(zdata) > 0) {
-		if (Z_STRLEN_PP(zdata) < 32) {
+		if (Z_STRLEN_PP(zdata) < 128) {
 			connection->vhost = estrndup(Z_STRVAL_PP(zdata), Z_STRLEN_PP(zdata));
 		} else {
-			zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'vhost' exceeds 32 character limit.", 0 TSRMLS_CC);
+			zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'vhost' exceeds 128 character limit.", 0 TSRMLS_CC);
 			return;
 		}
 	} else {
-		connection->vhost = estrndup(INI_STR("amqp.vhost"), strlen(INI_STR("amqp.vhost")) > 32 ? 32 : strlen(INI_STR("amqp.vhost")));
+		connection->vhost = estrndup(INI_STR("amqp.vhost"), strlen(INI_STR("amqp.vhost")) > 128 ? 128 : strlen(INI_STR("amqp.vhost")));
 	}
 
 	connection->port = INI_INT("amqp.port");
@@ -398,8 +467,8 @@ PHP_METHOD(amqp_connection_class, setLogin)
 	}
 
 	/* Validate login length */
-	if (login_len > 32) {
-		zend_throw_exception(amqp_connection_exception_class_entry, "Invalid 'login' given, exceeds 32 characters limit.", 0 TSRMLS_CC);
+	if (login_len > 128) {
+		zend_throw_exception(amqp_connection_exception_class_entry, "Invalid 'login' given, exceeds 128 characters limit.", 0 TSRMLS_CC);
 		return;
 	}
 
@@ -449,8 +518,8 @@ PHP_METHOD(amqp_connection_class, setPassword)
 	}
 
 	/* Validate password length */
-	if (password_len > 32) {
-		zend_throw_exception(amqp_connection_exception_class_entry, "Invalid 'password' given, exceeds 32 characters limit.", 0 TSRMLS_CC);
+	if (password_len > 128) {
+		zend_throw_exception(amqp_connection_exception_class_entry, "Invalid 'password' given, exceeds 128 characters limit.", 0 TSRMLS_CC);
 		return;
 	}
 
@@ -620,8 +689,8 @@ PHP_METHOD(amqp_connection_class, setVhost)
 	}
 
 	/* Validate vhost length */
-	if (vhost_len > 32) {
-		zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'vhost' exceeds 32 characters limit.", 0 TSRMLS_CC);
+	if (vhost_len > 128) {
+		zend_throw_exception(amqp_connection_exception_class_entry, "Parameter 'vhost' exceeds 128 characters limit.", 0 TSRMLS_CC);
 		return;
 	}
 
@@ -642,5 +711,5 @@ PHP_METHOD(amqp_connection_class, setVhost)
 *c-basic-offset: 4
 *End:
 *vim600: noet sw=4 ts=4 fdm=marker
-*vim<600: noet sw=4 ts=4
+*vim<6
 */

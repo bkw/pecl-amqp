@@ -140,6 +140,8 @@ extern zend_module_entry amqp_module_entry;
 #define AMQP_EX_TYPE_TOPIC		"topic"
 #define AMQP_EX_TYPE_HEADER		"header"
 
+#define PHP_AMQP_CONNECTION_RES_NAME "AMQP Connection Resource"
+
 PHP_MINIT_FUNCTION(amqp);
 PHP_MSHUTDOWN_FUNCTION(amqp);
 PHP_MINFO_FUNCTION(amqp);
@@ -164,8 +166,9 @@ extern zend_class_entry *amqp_exception_class_entry,
 #define HEADER_FOOTER_SIZE					8			/*  7 bytes up front, then payload, then 1 byte footer */
 #define AMQP_HEARTBEAT						0	   		/* heartbeat */
 
-#define DEFAULT_PORT						5672		/* default AMQP port */
-#define DEFAULT_PORT_STR					"5672"
+#define DEFAULT_NUM_CONNECTION_CHANNELS		255
+
+#define DEFAULT_PORT						"5672"		/* default AMQP port */
 #define DEFAULT_HOST						"localhost"
 #define DEFAULT_VHOST						"/"
 #define DEFAULT_LOGIN						"guest"
@@ -221,31 +224,8 @@ extern zend_class_entry *amqp_exception_class_entry,
 	} \
 	
 
-/* If you declare any globals in php_amqp.h uncomment this:
- ZEND_DECLARE_MODULE_GLOBALS(amqp)
-*/
-
-/* Storage for channels per connection */
-typedef struct _amqp_ring_buffer {
-	int size;
-	int *entries;
-} amqp_ring_buffer;
-
-typedef struct _amqp_connection_object {
-	zend_object zo;
-	char is_connected;
-	char *login;
-	int char_len;
-	char *password;
-	int password_len;
-	char *host;
-	int host_len;
-	char *vhost;
-	int vhost_len;
-	int port;
-	int fd;
-	amqp_connection_state_t connection_state;
-} amqp_connection_object;
+int le_amqp_connection_resource;
+// ZEND_DECLARE_MODULE_GLOBALS(amqp)
 
 typedef struct _amqp_channel_object {
 	zend_object zo;
@@ -255,6 +235,28 @@ typedef struct _amqp_channel_object {
 	int prefetch_count;
 	int prefetch_size;
 } amqp_channel_object;
+
+typedef struct _amqp_connection_resource {
+	int used_slots;
+	amqp_channel_object **slots;
+	int fd;
+	amqp_connection_state_t connection_state;
+} amqp_connection_resource;
+
+typedef struct _amqp_connection_object {
+	zend_object zo;
+	char is_connected;
+	char *login;
+	int login_len;
+	char *password;
+	int password_len;
+	char *host;
+	int host_len;
+	char *vhost;
+	int vhost_len;
+	int port;
+	amqp_connection_resource *connection_resource;
+} amqp_connection_object;
 
 typedef struct _amqp_queue_object {
 	zend_object zo;

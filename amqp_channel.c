@@ -44,24 +44,28 @@
 
 void amqp_channel_dtor(void *object TSRMLS_DC)
 {
-	amqp_channel_object *ob = (amqp_channel_object*)object;
+	amqp_channel_object *channel = (amqp_channel_object*)object;
+	amqp_connection_object *connection;
 
-	zend_object_std_dtor(&ob->zo TSRMLS_CC);
+	connection = AMQP_GET_CONNECTION(channel);
+	
+	remove_channel_from_connection(connection, channel);
+	
+	zend_object_std_dtor(&channel->zo TSRMLS_CC);
 
 	efree(object);
-
 }
 
 zend_object_value amqp_channel_ctor(zend_class_entry *ce TSRMLS_DC)
 {
 	zend_object_value new_value;
-	amqp_channel_object* obj = (amqp_channel_object*)emalloc(sizeof(amqp_channel_object));
+	amqp_channel_object *channel = (amqp_channel_object*)emalloc(sizeof(amqp_channel_object));
 
-	memset(obj, 0, sizeof(amqp_channel_object));
+	memset(channel, 0, sizeof(amqp_channel_object));
 
-	zend_object_std_init(&obj->zo, ce TSRMLS_CC);
+	zend_object_std_init(&channel->zo, ce TSRMLS_CC);
 
-	new_value.handle = zend_objects_store_put(obj, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t)amqp_channel_dtor, NULL TSRMLS_CC);
+	new_value.handle = zend_objects_store_put(channel, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t)amqp_channel_dtor, NULL TSRMLS_CC);
 	new_value.handlers = zend_get_std_object_handlers();
 
 	return new_value;
@@ -88,19 +92,28 @@ PHP_METHOD(amqp_channel_class, __construct)
 	channel = (amqp_channel_object *)zend_object_store_get_object(id TSRMLS_CC);
 	channel->connection = connObj; 
 
-	channel->channel_id = 1;
-
 	Z_ADDREF_P(connObj);
 
 	/* Set the prefetch count */
 	channel->prefetch_count = INI_INT("amqp.prefetch_count");
 
+	/* Pull out and verify the connection */
 	connection = AMQP_GET_CONNECTION(channel);
 	AMQP_VERIFY_CONNECTION(connection, amqp_channel_exception_class_entry, "Could not create channel.");
 
-	amqp_channel_open(connection->connection_state, channel->channel_id);
+	/* Figure out what the next available channel is on this connection */
+	channel->channel_id = get_next_available_channel(connection, channel);
+	
+	/* Check that we got a valid channel */
+	if (channel->channel_id < 0) {
+		zend_throw_exception(amqp_channel_exception_class_entry, "Could not create channel. Connection has no open channel slots remaining.", 0 TSRMLS_CC);
+		return;
+	}
 
-	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(connection->connection_state);
+	/* Open up the channel for use */
+	amqp_channel_open(connection->connection_resource->connection_state, channel->channel_id);
+
+	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(connection->connection_resource->connection_state);
 	if (res.reply_type != AMQP_RESPONSE_NORMAL) {
 		char str[256];
 		char ** pstr = (char **) &str;
@@ -113,7 +126,7 @@ PHP_METHOD(amqp_channel_class, __construct)
 
 	/* Set the prefetch count: */
 	amqp_basic_qos_ok_t *r = amqp_basic_qos(
-		connection->connection_state,
+		connection->connection_resource->connection_state,
 		channel->channel_id,
 		0,
 		channel->prefetch_count,
@@ -176,7 +189,7 @@ PHP_METHOD(amqp_channel_class, setPrefetchCount)
 	/* If we are already connected, set the new prefetch count */
 	if (channel->is_connected) {
 		amqp_basic_qos_ok_t *r = amqp_basic_qos(
-			connection->connection_state,
+			connection->connection_resource->connection_state,
 			channel->channel_id,
 			channel->prefetch_size,
 			channel->prefetch_count,
@@ -216,7 +229,7 @@ PHP_METHOD(amqp_channel_class, setPrefetchSize)
 	/* If we are already connected, set the new prefetch count */
 	if (channel->is_connected) {
 		amqp_basic_qos_ok_t *r = amqp_basic_qos(
-			connection->connection_state,
+			connection->connection_resource->connection_state,
 			channel->channel_id,
 			channel->prefetch_size,
 			channel->prefetch_count,
@@ -257,7 +270,7 @@ PHP_METHOD(amqp_channel_class, qos)
 	/* If we are already connected, set the new prefetch count */
 	if (channel->is_connected) {
 		amqp_basic_qos_ok_t *r = amqp_basic_qos(
-			connection->connection_state,
+			connection->connection_resource->connection_state,
 			channel->channel_id,
 			channel->prefetch_size,
 			channel->prefetch_count,

@@ -188,37 +188,20 @@ PHP_METHOD(amqp_exchange_class, getFlags)
 /* }}} */
 
 
-/* {{{ proto AMQPExchange::setFlags(mixed bitmask)
+/* {{{ proto AMQPExchange::setFlags(long bitmask)
 Set the exchange parameters */
 PHP_METHOD(amqp_exchange_class, setFlags)
 {
 	zval *id;
 	amqp_exchange_object *exchange;
-	zval *zvalFlagBitmask;
-	long flagBitmask;
+	int flagBitmask;
 	
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oz", &id, amqp_exchange_class_entry, &zvalFlagBitmask) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Ol", &id, amqp_exchange_class_entry, &flagBitmask) == FAILURE) {
 		return;
 	}
 
 	/* Pull the exchange off the object store */
 	exchange = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
-	
-	/* Parse out the port*/
-	switch (Z_TYPE_P(zvalFlagBitmask)) {
-		case IS_DOUBLE:
-			flagBitmask = (int)Z_DVAL_P(zvalFlagBitmask);
-			break;
-		case IS_LONG:
-			flagBitmask = (int)Z_LVAL_P(zvalFlagBitmask);
-			break;
-		case IS_STRING:
-			convert_to_long(zvalFlagBitmask);
-			flagBitmask = (int)Z_LVAL_P(zvalFlagBitmask);
-			break;
-		default:
-			flagBitmask = 0;
-	}
 	
 	/* Set the flags based on the bitmask we were given */
 	exchange->passive = IS_PASSIVE(flagBitmask);
@@ -421,7 +404,6 @@ PHP_METHOD(amqp_exchange_class, declare)
 	connection = AMQP_GET_CONNECTION(channel);
 	AMQP_VERIFY_CONNECTION(connection, amqp_exchange_exception_class_entry, "Could not declare exchange.");
 	
-
 	/* Check that the exchange has a name */
 	if (exchange->name_len < 1) {
 		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not declare exchange. Exchanges must have a name.", 0 TSRMLS_CC);
@@ -435,9 +417,8 @@ PHP_METHOD(amqp_exchange_class, declare)
 	}
 
 	amqp_table_t *arguments = convert_zval_to_arguments(exchange->arguments);
-	
 	amqp_exchange_declare(
-		connection->connection_state,
+		connection->connection_resource->connection_state,
 		channel->channel_id,
 		amqp_cstring_bytes(exchange->name),
 		amqp_cstring_bytes(exchange->type),
@@ -446,7 +427,7 @@ PHP_METHOD(amqp_exchange_class, declare)
 		*arguments
 	);
 
-	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(connection->connection_state); 
+	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(connection->connection_resource->connection_state); 
 
 	AMQP_EFREE_ARGUMENTS(arguments);
 	
@@ -455,7 +436,6 @@ PHP_METHOD(amqp_exchange_class, declare)
 		char str[256];
 		char ** pstr = (char **) &str;
 		amqp_error(res, pstr);
-		connection->is_connected = '\0';
 		zend_throw_exception(amqp_exchange_exception_class_entry, *pstr, 0 TSRMLS_CC);
 		return;
 	}
@@ -511,9 +491,8 @@ PHP_METHOD(amqp_exchange_class, delete)
 	AMQP_VERIFY_CONNECTION(connection, amqp_exchange_exception_class_entry, "Could not declare exchange.");
 	
 	amqp_method_number_t method_ok = AMQP_EXCHANGE_DELETE_OK_METHOD;
-
 	res = amqp_simple_rpc(
-		connection->connection_state,
+		connection->connection_resource->connection_state,
 		channel->channel_id,
 		AMQP_EXCHANGE_DELETE_METHOD,
 		&method_ok, &s
@@ -742,7 +721,7 @@ PHP_METHOD(amqp_exchange_class, publish)
 	old_handler = signal(SIGPIPE, SIG_IGN);
 
 	int r = amqp_basic_publish(
-		connection->connection_state,
+		connection->connection_resource->connection_state,
 		channel->channel_id,
 		(amqp_bytes_t) {exchange->name_len, exchange->name},
 		(amqp_bytes_t) {key_len, key_name },
@@ -763,8 +742,7 @@ PHP_METHOD(amqp_exchange_class, publish)
 	if (r) {
 		char str[256];
 		char ** pstr = (char **) &str;
-		res = (amqp_rpc_reply_t)amqp_get_rpc_reply(connection->connection_state); 
-		connection->is_connected = '\0';
+		res = (amqp_rpc_reply_t)amqp_get_rpc_reply(connection->connection_resource->connection_state); 
 		amqp_error(res, pstr);
 		zend_throw_exception(amqp_exchange_exception_class_entry, *pstr, 0 TSRMLS_CC);
 		return;
@@ -819,7 +797,7 @@ PHP_METHOD(amqp_exchange_class, bind)
 
 	amqp_method_number_t method_ok = AMQP_QUEUE_BIND_OK_METHOD;
 	result = amqp_simple_rpc(
-		connection->connection_state,
+		connection->connection_resource->connection_state,
 		channel->channel_id,
 		AMQP_QUEUE_BIND_METHOD,
 		&method_ok,
@@ -831,7 +809,6 @@ PHP_METHOD(amqp_exchange_class, bind)
 		char str[256];
 		char ** pstr = (char **) &str;
 		amqp_error(res, pstr);
-		connection->is_connected = 0;
 		zend_throw_exception(amqp_exchange_exception_class_entry, *pstr, 0 TSRMLS_CC);
 		return;
 	}
