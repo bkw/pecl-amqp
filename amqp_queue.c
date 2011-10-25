@@ -527,7 +527,7 @@ PHP_METHOD(amqp_queue_class, get)
 		channel->channel_id,
 		amqp_cstring_bytes(queue->name),
 		AMQP_EMPTY_BYTES,					/* Consumer tag */
-		0, 									/* No local */
+		(AMQP_NOLOCAL & flags) ? 1 : 0, 	/* No local */
 		(AMQP_AUTOACK & flags) ? 1 : 0,		/* no_ack, aka AUTOACK */
 		queue->exclusive,
 		*arguments
@@ -820,11 +820,19 @@ PHP_METHOD(amqp_queue_class, consume)
 	connection = AMQP_GET_CONNECTION(channel);
 	AMQP_VERIFY_CONNECTION(connection, amqp_queue_exception_class_entry, "Could not get from queue.");
 	
-	/*
-	Dont set the auto_ack flag. We are goign to not acknowledge the message here, and then, when processed, we will check the 
-	flag and acknowledge at the time.
+	/* Dont set the auto_ack flag. We are going to not acknowledge the message here, and then, when processed, we will check the 
+	   flag and acknowledge at the time.
 	*/
-	amqp_basic_consume(connection->connection_resource->connection_state, channel->channel_id, amqp_cstring_bytes(queue->name), AMQP_EMPTY_BYTES, 0, 0, 0, AMQP_EMPTY_TABLE);
+	amqp_basic_consume(
+		connection->connection_resource->connection_state,
+		channel->channel_id,
+		amqp_cstring_bytes(queue->name),
+		AMQP_EMPTY_BYTES,
+		(AMQP_NOLOCAL & flags) ? 1 : 0, 	/* No local */
+		0,									/* no_ack, aka AUTOACK */
+		queue->exclusive,
+		AMQP_EMPTY_TABLE
+	);
 	
 	/* verify there are no errors before grabbing the messages */
 	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(connection->connection_resource->connection_state);	
@@ -1119,7 +1127,12 @@ PHP_METHOD(amqp_queue_class, consume)
 		
 		/* if we have chosen to auto_ack, meaning that we do not need to acknowledge at a later date, acknowledge now */
 		if (flags & AMQP_AUTOACK) {
-			amqp_basic_ack(connection->connection_resource->connection_state, channel->channel_id, delivery->delivery_tag, 0);
+			amqp_basic_ack(
+				connection->connection_resource->connection_state,
+				channel->channel_id,
+				delivery->delivery_tag,
+				0
+			);
 		}
 		
 		efree(buf);

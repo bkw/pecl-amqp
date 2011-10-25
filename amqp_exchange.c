@@ -458,12 +458,12 @@ PHP_METHOD(amqp_exchange_class, delete)
 
 	char *name = 0;
 	int name_len = 0;
-	long parms = 0;
+	long flags = 0;
 
 	amqp_rpc_reply_t res;
 	amqp_exchange_delete_t s;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|sl", &id, amqp_exchange_class_entry, &name, &name_len, &parms) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|sl", &id, amqp_exchange_class_entry, &name, &name_len, &flags) == FAILURE) {
 		return;
 	}
 
@@ -474,13 +474,13 @@ PHP_METHOD(amqp_exchange_class, delete)
 		s.ticket = 0;
 		s.exchange.len = name_len;
 		s.exchange.bytes = name;
-		s.if_unused = (AMQP_IFUNUSED & parms) ? 1 : 0;
+		s.if_unused = (AMQP_IFUNUSED & flags) ? 1 : 0;
 		s.nowait = 0;
 	} else {
-		s.ticket = 0,
+		s.ticket = 0;
 		s.exchange.len = exchange->name_len;
 		s.exchange.bytes = exchange->name;
-		s.if_unused = (AMQP_IFUNUSED & parms) ? 1 : 0;
+		s.if_unused = (AMQP_IFUNUSED & flags) ? 1 : 0;
 		s.nowait = 0;
 	}
 
@@ -510,7 +510,7 @@ PHP_METHOD(amqp_exchange_class, delete)
 }
 /* }}} */
 
-/* {{{ proto AMQPExchange::publish(string msg, string key, [int params, [array attributes]]);
+/* {{{ proto AMQPExchange::publish(string msg, string key, [int flags, [array attributes]]);
 publish into Exchange
 */
 PHP_METHOD(amqp_exchange_class, publish)
@@ -528,14 +528,14 @@ PHP_METHOD(amqp_exchange_class, publish)
 	char *msg;
 	int msg_len= 0;
 
-	long parms = 0;
+	long flags = 0;
 
 	/* Storage for previous signal handler during SIGPIPE override */
 	void * old_handler;
 
 	amqp_rpc_reply_t res;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss|la", &id, amqp_exchange_class_entry, &msg, &msg_len, &key_name, &key_len, &parms, &iniArr) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss|la", &id, amqp_exchange_class_entry, &msg, &msg_len, &key_name, &key_len, &flags, &iniArr) == FAILURE) {
 		return;
 	}
 
@@ -725,8 +725,8 @@ PHP_METHOD(amqp_exchange_class, publish)
 		channel->channel_id,
 		(amqp_bytes_t) {exchange->name_len, exchange->name},
 		(amqp_bytes_t) {key_len, key_name },
-		(AMQP_MANDATORY & parms) ? 1 : 0, /* mandatory */
-		(AMQP_IMMEDIATE & parms) ? 1 : 0, /* immediate */
+		(AMQP_MANDATORY & flags) ? 1 : 0, /* mandatory */
+		(AMQP_IMMEDIATE & flags) ? 1 : 0, /* immediate */
 		&props,
 		(amqp_bytes_t) {msg_len, msg }
 	);
