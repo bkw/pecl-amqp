@@ -222,7 +222,7 @@ extern zend_class_entry *amqp_exception_class_entry,
 		zend_throw_exception((exception), verify_connection_tmp, 0 TSRMLS_CC); \
 		return; \
 	} \
-	
+
 
 int le_amqp_connection_resource;
 // ZEND_DECLARE_MODULE_GLOBALS(amqp)
@@ -240,6 +240,7 @@ typedef struct _amqp_connection_resource {
 	int used_slots;
 	amqp_channel_object **slots;
 	int fd;
+	int is_persistent;
 	amqp_connection_state_t connection_state;
 } amqp_connection_resource;
 

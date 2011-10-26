@@ -51,6 +51,11 @@ void amqp_channel_dtor(void *object TSRMLS_DC)
 	
 	remove_channel_from_connection(connection, channel);
 	
+	/* Destroy the connection storage */
+	if (channel->connection) {
+		zval_ptr_dtor(&channel->connection);
+	}
+	
 	zend_object_std_dtor(&channel->zo TSRMLS_CC);
 
 	efree(object);
@@ -128,9 +133,9 @@ PHP_METHOD(amqp_channel_class, __construct)
 	amqp_basic_qos_ok_t *r = amqp_basic_qos(
 		connection->connection_resource->connection_state,
 		channel->channel_id,
-		0,
-		channel->prefetch_count,
-		0
+		0,							/* prefetch window size */
+		channel->prefetch_count,	/* prefetch message count */
+		0							/* global flag */
 	);
 }
 /* }}} */

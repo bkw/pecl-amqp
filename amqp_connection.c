@@ -46,25 +46,46 @@
  *	handles connecting to amqp
  *	called by connect() and reconnect()
  */
-void php_amqp_connect(amqp_connection_object *connection TSRMLS_DC)
+void php_amqp_connect(amqp_connection_object *connection, int persistent TSRMLS_DC)
 {
 	char str[256];
 	char ** pstr = (char **) &str;
 	void * old_handler;
 
-	/* Pull the connection resource out for easy access */
-	amqp_connection_resource *resource = connection->connection_resource;
 
-	/* create the connection */
-	resource->connection_state = amqp_new_connection();
+	/* Clean up old memory allocations which are now invalid (new connection) */
+	if (connection->connection_resource) {
+		if (connection->connection_resource->slots) {
+			/* @TODO: We should iterate through all open channels and mark them as disconnected */
+			pefree(connection->connection_resource->slots, persistent);
+		}
+		pefree(connection->connection_resource, persistent);
+	}
+	
+	/* Allocate space for the connection resource */
+	connection->connection_resource = (amqp_connection_resource *)pemalloc(sizeof(amqp_connection_resource), persistent);
+	memset(connection->connection_resource, 0, sizeof(amqp_connection_resource));
 
-	resource->fd = amqp_open_socket(connection->host, connection->port);
+	/* Allocate space for the channel slots in the ring buffer */
+	connection->connection_resource->slots = (amqp_channel_object **)pecalloc(DEFAULT_CHANNELS_PER_CONNECTION, sizeof(amqp_channel_object*), persistent);
+	/* Initialize all the data */
+	connection->connection_resource->used_slots = 0;
 
-	if (resource->fd < 1) {
+	/* Mark this as non persistent resource */
+	connection->connection_resource->is_persistent = persistent;
+
+	/* Create the connection */
+	connection->connection_resource->connection_state = amqp_new_connection();
+
+	/* Get the connection socket out */
+	connection->connection_resource->fd = amqp_open_socket(connection->host, connection->port);
+
+	/* Verify that we actually got a connectio back */
+	if (connection->connection_resource->fd < 1) {
 		/* Start ignoring SIGPIPE */
 		old_handler = signal(SIGPIPE, SIG_IGN);
 
-		amqp_destroy_connection(resource->connection_state);
+		amqp_destroy_connection(connection->connection_resource->connection_state);
 
 		/* End ignoring of SIGPIPEs */
 		signal(SIGPIPE, old_handler);
@@ -73,9 +94,18 @@ void php_amqp_connect(amqp_connection_object *connection TSRMLS_DC)
 		return;
 	}
 
-	amqp_set_sockfd(resource->connection_state, resource->fd);
+	amqp_set_sockfd(connection->connection_resource->connection_state, connection->connection_resource->fd);
 
-	amqp_rpc_reply_t x = amqp_login(resource->connection_state, connection->vhost, 0, FRAME_MAX, AMQP_HEARTBEAT, AMQP_SASL_METHOD_PLAIN, connection->login, connection->password);
+	amqp_rpc_reply_t x = amqp_login(
+		connection->connection_resource->connection_state,
+		connection->vhost,
+		0,							/* Channel max */
+		FRAME_MAX,
+		AMQP_HEARTBEAT,
+		AMQP_SASL_METHOD_PLAIN,
+		connection->login,
+		connection->password
+	);
 
 	if (x.reply_type != AMQP_RESPONSE_NORMAL) {
 		amqp_error(x, pstr);
@@ -93,6 +123,7 @@ void php_amqp_connect(amqp_connection_object *connection TSRMLS_DC)
 void php_amqp_disconnect(amqp_connection_object *connection)
 {
 	void * old_handler;
+	int slot;
 	
 	/* Pull the connection resource out for easy access */
 	amqp_connection_resource *resource = connection->connection_resource;
@@ -106,20 +137,31 @@ void php_amqp_disconnect(amqp_connection_object *connection)
 	old_handler = signal(SIGPIPE, SIG_IGN);
 	
 	if (connection->is_connected == '\1') {
-		/* TODO: disconnect from all channels */
-		// amqp_channel_close(connection->connection_state, channel->channel_id, AMQP_REPLY_SUCCESS);
+		/* Close all open channels */
+		for (slot = 1; slot < DEFAULT_CHANNELS_PER_CONNECTION; slot++) {
+			if (resource->slots[slot] != 0) {
+				/* We found the channel, disconnect it: */
+				amqp_channel_close(connection->connection_resource->connection_state, slot, AMQP_REPLY_SUCCESS);
+
+				/* Clean up our local storage */
+				resource->slots[slot] = 0;
+				resource->used_slots--;
+			}
+		}
 	}
 
-	if (resource->connection_state && connection->is_connected == '\1') {
+	
+	if (resource && resource->connection_state && connection->is_connected == '\1') {
 		amqp_connection_close(resource->connection_state, AMQP_REPLY_SUCCESS);
 		amqp_destroy_connection(resource->connection_state);
+		
+		if (resource->fd) {
+			close(resource->fd);
+		}
 	}
 
 	connection->is_connected = '\0';
 
-	if (resource->fd) {
-		close(resource->fd);
-	}
 
 	/* End ignoring of SIGPIPEs */
 	signal(SIGPIPE, old_handler);
@@ -127,7 +169,10 @@ void php_amqp_disconnect(amqp_connection_object *connection)
 	return;
 }
 
-int get_next_available_channel(amqp_connection_object *connection, amqp_channel_object *channel) {
+int get_next_available_channel(amqp_connection_object *connection, amqp_channel_object *channel)
+{
+	int slot;
+	
 	/* Pull out the ring buffer for ease of use */
 	amqp_connection_resource *resource = connection->connection_resource;
 	
@@ -137,8 +182,7 @@ int get_next_available_channel(amqp_connection_object *connection, amqp_channel_
 	}
 	
 	/* Go through the slots looking for an opening */
-	int slot = 1;
-	for (; slot < DEFAULT_CHANNELS_PER_CONNECTION; slot++) {
+	for (slot = 1; slot < DEFAULT_CHANNELS_PER_CONNECTION; slot++) {
 		if (resource->slots[slot] == 0) {
 			/* Yay! we found a slot. Store the channel for later (disconnect needs to clean up connected channels) */
 			resource->slots[slot] = channel;
@@ -152,15 +196,20 @@ int get_next_available_channel(amqp_connection_object *connection, amqp_channel_
 	return -1;
 }
 
-void remove_channel_from_connection(amqp_connection_object *connection, amqp_channel_object *channel) {
+void remove_channel_from_connection(amqp_connection_object *connection, amqp_channel_object *channel)
+{
+	int slot;
+	
 	/* Pull out the ring buffer for ease of use */
 	amqp_connection_resource *resource = connection->connection_resource;
 	
 	/* Go through the slots looking for an opening */
-	int slot = 1;
-	for (; slot < DEFAULT_CHANNELS_PER_CONNECTION; slot++) {
+	for (slot = 1; slot < DEFAULT_CHANNELS_PER_CONNECTION; slot++) {
 		if (resource->slots[slot] == channel) {
-			/* Yay! we found a slot. Store the channel for later (disconnect needs to clean up connected channels) */
+			/* We found the channel, disconnect it: */
+			amqp_channel_close(connection->connection_resource->connection_state, channel->channel_id, AMQP_REPLY_SUCCESS);
+			
+			/* Clean up our local storage */
 			resource->slots[slot] = 0;
 			resource->used_slots--;
 			
@@ -171,37 +220,47 @@ void remove_channel_from_connection(amqp_connection_object *connection, amqp_cha
 	return;
 }
 
+static void amqp_connection_resource_dtor_persistent(zend_rsrc_list_entry *rsrc TSRMLS_DC)
+{
+	amqp_connection_resource *resource = (amqp_connection_resource *)rsrc->ptr;
+
+	if (resource->slots) {
+		pefree(resource->slots, 1);
+	}
+	pefree(resource, 1);
+}
+
 void amqp_connection_dtor(void *object TSRMLS_DC)
 {
-	amqp_connection_object *ob = (amqp_connection_object*)object;
+	amqp_connection_object *connection = (amqp_connection_object*)object;
 
-	php_amqp_disconnect(ob);
+	php_amqp_disconnect(connection);
 
 	/* Clean up all the strings */
-	if (ob->host) {
-		efree(ob->host);
+	if (connection->host) {
+		efree(connection->host);
 	}
 	
-	if (ob->vhost) {
-		efree(ob->vhost);
+	if (connection->vhost) {
+		efree(connection->vhost);
 	}
 	
-	if (ob->login) {
-		efree(ob->login);
+	if (connection->login) {
+		efree(connection->login);
 	}
 	
-	if (ob->password) {
-		efree(ob->password);
+	if (connection->password) {
+		efree(connection->password);
 	}
 
-	if (ob->connection_resource) {
-		if (ob->connection_resource->slots) {
-			efree(ob->connection_resource->slots);
+	if (connection->connection_resource && connection->connection_resource->is_persistent == 0) {
+		if (connection->connection_resource->slots) {
+			efree(connection->connection_resource->slots);
 		}
-		efree(ob->connection_resource);
+		efree(connection->connection_resource);
 	}
 
-	zend_object_std_dtor(&ob->zo TSRMLS_CC);
+	zend_object_std_dtor(&connection->zo TSRMLS_CC);
 
 	efree(object);
 }
@@ -214,15 +273,6 @@ zend_object_value amqp_connection_ctor(zend_class_entry *ce TSRMLS_DC)
 	memset(connection, 0, sizeof(amqp_connection_object));
 
 	zend_object_std_init(&connection->zo, ce TSRMLS_CC);
-
-	/* Allocate space for the connection resource */
-	connection->connection_resource = (amqp_connection_resource *)emalloc(sizeof(amqp_connection_resource));
-	memset(connection->connection_resource, 0, sizeof(amqp_connection_resource));
-	
-	/* Allocate space for the channel slots in the ring buffer */
-	connection->connection_resource->slots = (amqp_channel_object **)ecalloc(DEFAULT_CHANNELS_PER_CONNECTION, sizeof(amqp_channel_object*));
-	/* Initialize all the data */
-	connection->connection_resource->used_slots = 0;
 
 	new_value.handle = zend_objects_store_put(connection, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t)amqp_connection_dtor, NULL TSRMLS_CC);
 	new_value.handlers = zend_get_std_object_handlers();
@@ -250,9 +300,6 @@ PHP_METHOD(amqp_connection_class, __construct)
 	/* Pull the connection off of the store */
 	connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
 	
-	/* Put the resource in the resource manager */
-	// zend_list_insert(connection->connection_resource, le_amqp_connection_resource);
-
 	/* Pull the login out of the $params array */
 	zdata = NULL;
 	if (iniArr && SUCCESS == zend_hash_find(HASH_OF (iniArr), "login", sizeof("login"), (void*)&zdata)) {
@@ -372,13 +419,62 @@ PHP_METHOD(amqp_connection_class, connect)
 
 	/* Get the connection object out of the store */
 	connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
-
-	php_amqp_connect(connection TSRMLS_CC);
+		
+	/* Actually connect this resource to the broker */
+	php_amqp_connect(connection, 0 TSRMLS_CC);
 	
 	/* @TODO: return connection success or failure */
 	RETURN_TRUE;
 }
+/* }}} */
 
+
+/* {{{ proto amqp::connect()
+create amqp connection */
+PHP_METHOD(amqp_connection_class, pconnect)
+{
+	zval *id;
+	amqp_connection_object *connection;
+	char *key;
+	int key_len;
+    list_entry *le, new_le;
+
+	/* Try to pull amqp object out of method params */
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_connection_class_entry) == FAILURE) {
+		return;
+	}
+
+	/* Get the connection object out of the store */
+	connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
+
+	/* Look for an established resource */
+	key_len = spprintf(&key, 0, "amqp_conn_res_%s_%d_%s_%s", connection->host, connection->port, connection->vhost, connection->login);
+	
+	if (zend_hash_find(&EG(persistent_list), key, key_len + 1, (void **)&le) == SUCCESS) {
+		/* An entry for this connection resource already exists */
+		zend_list_insert(le, le_amqp_connection_resource);
+		
+		/* Stash the connection resource in the connection */
+		connection->connection_resource = le->ptr;
+		
+		efree(key);
+		return;
+	}
+
+	/* No resource found: Instantiate the underlying connection */
+	php_amqp_connect(connection, 1 TSRMLS_CC);
+	
+	/* Store a reference in the persistence list */
+    new_le.ptr = connection->connection_resource;
+    new_le.type = le_amqp_connection_resource;
+    zend_hash_add(&EG(persistent_list), key, key_len + 1, &new_le, sizeof(list_entry), NULL);
+	
+	/* Cleanup our key */
+	efree(key);
+	
+	/* @TODO: return connection success or failure */
+	RETURN_TRUE;
+}
 /* }}} */
 
 /* {{{ proto amqp::disconnect()
@@ -422,7 +518,7 @@ PHP_METHOD(amqp_connection_class, reconnect)
 		php_amqp_disconnect(connection);
 	}
 	
-	php_amqp_connect(connection TSRMLS_CC);
+	php_amqp_connect(connection, 0 TSRMLS_CC);
 	
 	/* @TODO: return the success or failure of connect */
 	RETURN_TRUE;
