@@ -106,7 +106,7 @@ PHP_METHOD(amqp_exchange_class, __construct)
 	/* Pull the channel out */
 	channel = AMQP_GET_CHANNEL(exchange);
 
-	AMQP_VERIFY_CHANNEL(channel, amqp_exchange_exception_class_entry, "Could not create exchange.");
+	AMQP_VERIFY_CHANNEL(channel, "Could not create exchange.");
 	
 	/* We have a valid connection: */
 	exchange->is_connected = '\1';
@@ -399,10 +399,10 @@ PHP_METHOD(amqp_exchange_class, declare)
 	exchange = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
 
 	channel = AMQP_GET_CHANNEL(exchange);
-	AMQP_VERIFY_CHANNEL(channel, amqp_exchange_exception_class_entry, "Could not declare exchange.");
+	AMQP_VERIFY_CHANNEL(channel, "Could not declare exchange.");
 	
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_exchange_exception_class_entry, "Could not declare exchange.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not declare exchange.");
 	
 	/* Check that the exchange has a name */
 	if (exchange->name_len < 1) {
@@ -485,10 +485,10 @@ PHP_METHOD(amqp_exchange_class, delete)
 	}
 
 	channel = AMQP_GET_CHANNEL(exchange);
-	AMQP_VERIFY_CHANNEL(channel, amqp_exchange_exception_class_entry, "Could not declare exchange.");
+	AMQP_VERIFY_CHANNEL(channel, "Could not declare exchange.");
 	
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_exchange_exception_class_entry, "Could not declare exchange.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not declare exchange.");
 	
 	amqp_method_number_t method_ok = AMQP_EXCHANGE_DELETE_OK_METHOD;
 	res = amqp_simple_rpc(
@@ -712,10 +712,10 @@ PHP_METHOD(amqp_exchange_class, publish)
 	}
 	
 	channel = AMQP_GET_CHANNEL(exchange);
-	AMQP_VERIFY_CHANNEL(channel, amqp_exchange_exception_class_entry, "Could not publish to exchange exchange.");
+	AMQP_VERIFY_CHANNEL(channel, "Could not publish to exchange exchange.");
 
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_exchange_exception_class_entry, "Could not publish to exchange exchange.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not publish to exchange exchange.");
 
 	/* Start ignoring SIGPIPE */
 	old_handler = signal(SIGPIPE, SIG_IGN);
@@ -778,10 +778,10 @@ PHP_METHOD(amqp_exchange_class, bind)
 	exchange = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
 	
 	channel = AMQP_GET_CHANNEL(exchange);
-	AMQP_VERIFY_CHANNEL(channel, amqp_exchange_exception_class_entry, "Could not bind to exchange.");
+	AMQP_VERIFY_CHANNEL(channel, "Could not bind to exchange.");
 	
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_exchange_exception_class_entry, "Could not bind to exchanges.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not bind to exchanges.");
 
 	amqp_queue_bind_t s;
 	s.ticket				= 0;

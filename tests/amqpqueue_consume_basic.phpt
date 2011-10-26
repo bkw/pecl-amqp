@@ -36,7 +36,6 @@ foreach ($msgs as $msg) {
 }
 
 $ex->delete();
-$q->delete();
 ?>
 --EXPECT--
 message

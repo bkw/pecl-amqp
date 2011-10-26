@@ -114,7 +114,7 @@ PHP_METHOD(amqp_queue_class, __construct)
 	channel = AMQP_GET_CHANNEL(queue);
 
 	/* Check that the given connection has a channel, before trying to pull the connection off the stack */
-	AMQP_VERIFY_CHANNEL(channel, amqp_queue_exception_class_entry, "Could not construct queue.");
+	AMQP_VERIFY_CHANNEL(channel, "Could not construct queue.");
 
 	/* We have a valid connection: */
 	queue->is_connected = '\1';
@@ -373,10 +373,10 @@ PHP_METHOD(amqp_queue_class, declare)
 	}
 
 	channel = AMQP_GET_CHANNEL(queue);
-	AMQP_VERIFY_CHANNEL(channel, amqp_queue_exception_class_entry, "Could not declare queue.");
+	AMQP_VERIFY_CHANNEL(channel, "Could not declare queue.");
 	
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_queue_exception_class_entry, "Could not declare queue.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not declare queue.");
 	
 	amqp_table_t *arguments = convert_zval_to_arguments(queue->arguments);
 
@@ -439,10 +439,10 @@ PHP_METHOD(amqp_queue_class, bind)
 	}
 
 	channel = AMQP_GET_CHANNEL(queue);
-	AMQP_VERIFY_CHANNEL(channel, amqp_queue_exception_class_entry, "Could not bind queue.");
+	AMQP_VERIFY_CHANNEL(channel, "Could not bind queue.");
 	
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_queue_exception_class_entry, "Could not bind queue.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not bind queue.");
 
 	amqp_queue_bind_t s;
 	s.ticket 				= 0;
@@ -515,10 +515,10 @@ PHP_METHOD(amqp_queue_class, get)
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
 
 	channel = AMQP_GET_CHANNEL(queue);
-	AMQP_VERIFY_CHANNEL(channel, amqp_queue_exception_class_entry, "Could not get queue.");
+	AMQP_VERIFY_CHANNEL(channel, "Could not get queue.");
 	
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_queue_exception_class_entry, "Could not get queue.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not get queue.");
 
 	amqp_table_t *arguments = convert_zval_to_arguments(queue->arguments);
 
@@ -815,10 +815,10 @@ PHP_METHOD(amqp_queue_class, consume)
 	}
 
 	channel = AMQP_GET_CHANNEL(queue);
-	AMQP_VERIFY_CHANNEL(channel, amqp_queue_exception_class_entry, "Could not get from queue.");
+	AMQP_VERIFY_CHANNEL(channel, "Could not get from queue.");
 	
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_queue_exception_class_entry, "Could not get from queue.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not get from queue.");
 	
 	/* Set the QOS for this channel to match the max_messages */
 	amqp_basic_qos(
@@ -1194,10 +1194,10 @@ PHP_METHOD(amqp_queue_class, ack)
 	}
 
 	channel = AMQP_GET_CHANNEL(queue);
-	AMQP_VERIFY_CHANNEL(channel, amqp_queue_exception_class_entry, "Could not ack message.");
+	AMQP_VERIFY_CHANNEL(channel, "Could not ack message.");
 	
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_queue_exception_class_entry, "Could not ack message.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not ack message.");
 	
 	s.delivery_tag = deliveryTag;
 	s.multiple = (AMQP_MULTIPLE & flags) ? 1 : 0;
@@ -1249,10 +1249,10 @@ PHP_METHOD(amqp_queue_class, nack)
 	}
 
 	channel = AMQP_GET_CHANNEL(queue);
-	AMQP_VERIFY_CHANNEL(channel, amqp_queue_exception_class_entry, "Could not ack message.");
+	AMQP_VERIFY_CHANNEL(channel, "Could not ack message.");
 	
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_queue_exception_class_entry, "Could not ack message.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not ack message.");
 	
 	s.delivery_tag = deliveryTag;
 	s.multiple = (AMQP_MULTIPLE & flags) ? 1 : 0;
@@ -1303,10 +1303,10 @@ PHP_METHOD(amqp_queue_class, purge)
 	}
 
 	channel = AMQP_GET_CHANNEL(queue);
-	AMQP_VERIFY_CHANNEL(channel, amqp_queue_exception_class_entry, "Could not purge queue.");
+	AMQP_VERIFY_CHANNEL(channel, "Could not purge queue.");
 	
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_queue_exception_class_entry, "Could not purge queue.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not purge queue.");
 
 	s.ticket		= 0;
 	s.queue.len		= queue->name_len;
@@ -1366,10 +1366,10 @@ PHP_METHOD(amqp_queue_class, cancel)
 	}
 
 	channel = AMQP_GET_CHANNEL(queue);
-	AMQP_VERIFY_CHANNEL(channel, amqp_queue_exception_class_entry, "Could not cancel queue.");
+	AMQP_VERIFY_CHANNEL(channel, "Could not cancel queue.");
 	
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_queue_exception_class_entry, "Could not cancel queue.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not cancel queue.");
 
 	if (consumer_tag_len) {
 		s.consumer_tag.len = consumer_tag_len;
@@ -1436,10 +1436,10 @@ PHP_METHOD(amqp_queue_class, unbind)
 	}
 
 	channel = AMQP_GET_CHANNEL(queue);
-	AMQP_VERIFY_CHANNEL(channel, amqp_queue_exception_class_entry, "Could not unbind queue.");
+	AMQP_VERIFY_CHANNEL(channel, "Could not unbind queue.");
 	
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_queue_exception_class_entry, "Could not unbind queue.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not unbind queue.");
 
 	amqp_queue_unbind_t s;
 	s.ticket				= 0;
@@ -1504,10 +1504,10 @@ PHP_METHOD(amqp_queue_class, delete)
 	}
 	
 	channel = AMQP_GET_CHANNEL(queue);
-	AMQP_VERIFY_CHANNEL(channel, amqp_queue_exception_class_entry, "Could not delete queue.");
+	AMQP_VERIFY_CHANNEL(channel, "Could not delete queue.");
 	
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_queue_exception_class_entry, "Could not delete queue.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not delete queue.");
 	
 	s.queue.len		= queue->name_len;
 	s.queue.bytes	= queue->name;

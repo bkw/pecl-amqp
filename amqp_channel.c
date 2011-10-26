@@ -104,7 +104,7 @@ PHP_METHOD(amqp_channel_class, __construct)
 
 	/* Pull out and verify the connection */
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_channel_exception_class_entry, "Could not create channel.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not create channel.");
 
 	/* Figure out what the next available channel is on this connection */
 	channel->channel_id = get_next_available_channel(connection, channel);
@@ -189,7 +189,7 @@ PHP_METHOD(amqp_channel_class, setPrefetchCount)
 	channel->prefetch_size = 0;
 		
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_channel_exception_class_entry, "Could not set prefetch count.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not set prefetch count.");
 	
 	/* If we are already connected, set the new prefetch count */
 	if (channel->is_connected) {
@@ -229,7 +229,7 @@ PHP_METHOD(amqp_channel_class, setPrefetchSize)
 	channel->prefetch_size = prefetch_size;
 	
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_channel_exception_class_entry, "Could not set prefetch size.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not set prefetch size.");
 	
 	/* If we are already connected, set the new prefetch count */
 	if (channel->is_connected) {
@@ -270,7 +270,7 @@ PHP_METHOD(amqp_channel_class, qos)
 	channel->prefetch_count = prefetch_count;
 	
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_channel_exception_class_entry, "Could not set qos parameters.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not set qos parameters.");
 	
 	/* If we are already connected, set the new prefetch count */
 	if (channel->is_connected) {
@@ -305,7 +305,7 @@ PHP_METHOD(amqp_channel_class, startTransaction)
 	channel = (amqp_channel_object *)zend_object_store_get_object(id TSRMLS_CC);
 	
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_channel_exception_class_entry, "Could not start the transaction.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not start the transaction.");
 	
 	amqp_tx_select_t s;
 	amqp_method_number_t select_ok = AMQP_TX_SELECT_OK_METHOD;
@@ -350,7 +350,7 @@ PHP_METHOD(amqp_channel_class, commitTransaction)
 	channel = (amqp_channel_object *)zend_object_store_get_object(id TSRMLS_CC);
 	
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_channel_exception_class_entry, "Could not start the transaction.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not start the transaction.");
 	
 	amqp_tx_commit_t s;
 	amqp_method_number_t commit_ok = AMQP_TX_COMMIT_OK_METHOD;
@@ -394,7 +394,7 @@ PHP_METHOD(amqp_channel_class, rollbackTransaction)
 	channel = (amqp_channel_object *)zend_object_store_get_object(id TSRMLS_CC);
 	
 	connection = AMQP_GET_CONNECTION(channel);
-	AMQP_VERIFY_CONNECTION(connection, amqp_channel_exception_class_entry, "Could not start the transaction.");
+	AMQP_VERIFY_CONNECTION(connection, "Could not start the transaction.");
 	
 	amqp_tx_rollback_t s;
 	amqp_method_number_t rollback_ok = AMQP_TX_ROLLBACK_OK_METHOD;

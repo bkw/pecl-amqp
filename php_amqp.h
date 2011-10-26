@@ -207,19 +207,19 @@ extern zend_class_entry *amqp_exception_class_entry,
 #define AMQP_GET_CONNECTION(object) \
  	(amqp_connection_object *) zend_object_store_get_object((object)->connection TSRMLS_CC); \
 
-#define AMQP_VERIFY_CHANNEL(channel, exception, error) \
+#define AMQP_VERIFY_CHANNEL(channel, error) \
 	if ((channel)->is_connected != '\1') { \
 		char verify_channel_tmp[255]; \
 		snprintf(verify_channel_tmp, 255, "%s. No channel available.", error); \
-		zend_throw_exception((exception), verify_channel_tmp, 0 TSRMLS_CC); \
+		zend_throw_exception(amqp_channel_exception_class_entry, verify_channel_tmp, 0 TSRMLS_CC); \
 		return; \
 	} \
 
-#define AMQP_VERIFY_CONNECTION(connection, exception, error) \
+#define AMQP_VERIFY_CONNECTION(connection, error) \
 	if ((connection)->is_connected != '\1') { \
 		char verify_connection_tmp[255]; \
 		snprintf(verify_connection_tmp, 255, "%s. No conection available.", error); \
-		zend_throw_exception((exception), verify_connection_tmp, 0 TSRMLS_CC); \
+		zend_throw_exception(amqp_connection_exception_class_entry, verify_connection_tmp, 0 TSRMLS_CC); \
 		return; \
 	} \
 
