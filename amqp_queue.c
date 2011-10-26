@@ -820,14 +820,21 @@ PHP_METHOD(amqp_queue_class, consume)
 	connection = AMQP_GET_CONNECTION(channel);
 	AMQP_VERIFY_CONNECTION(connection, amqp_queue_exception_class_entry, "Could not get from queue.");
 	
-	/* Dont set the auto_ack flag. We are going to not acknowledge the message here, and then, when processed, we will check the 
-	   flag and acknowledge at the time.
-	*/
+	/* Set the QOS for this channel to match the max_messages */
+	amqp_basic_qos(
+		connection->connection_resource->connection_state,
+		channel->channel_id,
+		0,							/* prefetch window size */
+		max_consume,				/* prefetch message count */
+		0							/* global flag */
+	);
+	
+	/* Dont set the auto_ack flag. We are going to not acknowledge the message here, and then, when processed, we will check the  flag and acknowledge at the time. */
 	amqp_basic_consume(
 		connection->connection_resource->connection_state,
 		channel->channel_id,
 		amqp_cstring_bytes(queue->name),
-		AMQP_EMPTY_BYTES,
+		AMQP_EMPTY_BYTES,					/* Consume tag */
 		(AMQP_NOLOCAL & flags) ? 1 : 0, 	/* No local */
 		0,									/* no_ack, aka AUTOACK */
 		queue->exclusive,
@@ -857,6 +864,7 @@ PHP_METHOD(amqp_queue_class, consume)
 	int i;
 	array_init(return_value);
 	char *buf = NULL;
+	long last_delivery_tag;
 	
 	for (i = 0; i < max_consume; i++) {
 
@@ -922,24 +930,16 @@ PHP_METHOD(amqp_queue_class, consume)
 
 		/* get message metadata */
 		amqp_basic_deliver_t * delivery = (amqp_basic_deliver_t *) frame.payload.method.decoded;
-		add_assoc_stringl_ex(message, "consumer_tag", 13,
-			delivery->consumer_tag.bytes,
-			delivery->consumer_tag.len, 1);
 
-		add_assoc_long_ex(message, "delivery_tag", 13,
-			delivery->delivery_tag);
-
-		add_assoc_bool_ex(message, "redelivered", 12,
-			delivery->redelivered);
-
-		add_assoc_stringl_ex(message, "routing_key", 12,
-			delivery->routing_key.bytes,
-			delivery->routing_key.len, 1 );
-
-		add_assoc_stringl_ex(message, "exchange", 9,
-			delivery->exchange.bytes,
-			delivery->exchange.len, 1);			
+		add_assoc_stringl_ex(message,	"consumer_tag", 13, delivery->consumer_tag.bytes, 	delivery->consumer_tag.len, 1);
+		add_assoc_long_ex(message,		"delivery_tag", 13, delivery->delivery_tag);
+		add_assoc_bool_ex(message,		"redelivered", 	12, delivery->redelivered);
+		add_assoc_stringl_ex(message,	"routing_key", 	12, delivery->routing_key.bytes, 	delivery->routing_key.len, 1);
+		add_assoc_stringl_ex(message,	"exchange", 	9, 	delivery->exchange.bytes, 		delivery->exchange.len, 1);			
 		
+		/* Copy the delivery tag to our higher scoper storage layer so we can ack everything up to the last delivery tag */
+		last_delivery_tag = delivery->delivery_tag;
+
 		/* get header frame (blocks) */
 		result = amqp_simple_wait_frame(connection->connection_resource->connection_state, &frame);
 		if (result < 0) {
@@ -1125,18 +1125,43 @@ PHP_METHOD(amqp_queue_class, consume)
 		/* add message to return value */
 		add_index_zval(return_value, i, message);
 		
-		/* if we have chosen to auto_ack, meaning that we do not need to acknowledge at a later date, acknowledge now */
-		if (flags & AMQP_AUTOACK) {
-			amqp_basic_ack(
-				connection->connection_resource->connection_state,
-				channel->channel_id,
-				delivery->delivery_tag,
-				0
-			);
-		}
-		
 		efree(buf);
 	}
+	
+	/* We are done. Before we ack, we need to first cancel this consumer */
+	amqp_method_number_t method_ok = AMQP_BASIC_CANCEL_OK_METHOD;
+	amqp_basic_cancel_t s;
+	
+	s.consumer_tag.len = queue->consumer_tag_len;
+	s.consumer_tag.bytes = queue->consumer_tag;
+	s.nowait = 0;
+	
+	amqp_simple_rpc(
+		connection->connection_resource->connection_state,
+		channel->channel_id,
+		AMQP_BASIC_CANCEL_METHOD,
+		&method_ok,
+		&s
+	);
+	
+	/* If we have chosen to auto_ack, meaning that we do not need to acknowledge at a later date, acknowledge now */
+	if (flags & AMQP_AUTOACK) {
+		amqp_basic_ack(
+			connection->connection_resource->connection_state,
+			channel->channel_id,
+			last_delivery_tag,
+			1						/* Multiple flag - Set to 1 will acknowledge up to and including the above delivery tag */
+		);
+	}
+	
+	/* Set the QOS back to what the user requested at the beginning */
+	amqp_basic_qos(
+		connection->connection_resource->connection_state,
+		channel->channel_id,
+		channel->prefetch_size,		/* prefetch window size */
+		channel->prefetch_count,	/* prefetch message count */
+		0							/* global flag */
+	);
 }
 /* }}} */
 

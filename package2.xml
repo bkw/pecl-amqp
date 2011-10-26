@@ -27,7 +27,13 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <license uri="http://www.php.net/license">PHP License</license>
  <notes>
 1.0.0 Release:
-
+Changed/finalized API signature:
+    * Exposing AMQPChannel
+    * Exposing more queue and exchange arguments and flags
+    * Exposing basic.qos
+Added persistent connections
+Cleaned up codebase
+Fixed memory leaks
      
 0.3.1 Release:
 Fixed bug:

@@ -56,7 +56,18 @@ void php_amqp_connect(amqp_connection_object *connection, int persistent TSRMLS_
 	/* Clean up old memory allocations which are now invalid (new connection) */
 	if (connection->connection_resource) {
 		if (connection->connection_resource->slots) {
-			/* @TODO: We should iterate through all open channels and mark them as disconnected */
+			int slot;
+			for (slot = 1; slot < DEFAULT_CHANNELS_PER_CONNECTION; slot++) {
+				if (connection->connection_resource->slots[slot] != 0) {
+					/* We found the channel, disconnect it: */
+					amqp_channel_close(connection->connection_resource->connection_state, slot, AMQP_REPLY_SUCCESS);
+
+					/* Clean up our local storage */
+					connection->connection_resource->slots[slot] = 0;
+					connection->connection_resource->used_slots--;
+				}
+			}
+			
 			pefree(connection->connection_resource->slots, persistent);
 		}
 		pefree(connection->connection_resource, persistent);
