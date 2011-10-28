@@ -223,7 +223,6 @@ extern zend_class_entry *amqp_exception_class_entry,
 		return; \
 	} \
 
-
 int le_amqp_connection_resource;
 // ZEND_DECLARE_MODULE_GLOBALS(amqp)
 

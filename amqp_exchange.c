@@ -194,7 +194,7 @@ PHP_METHOD(amqp_exchange_class, setFlags)
 {
 	zval *id;
 	amqp_exchange_object *exchange;
-	int flagBitmask;
+	long flagBitmask;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Ol", &id, amqp_exchange_class_entry, &flagBitmask) == FAILURE) {
 		return;
@@ -202,6 +202,8 @@ PHP_METHOD(amqp_exchange_class, setFlags)
 
 	/* Pull the exchange off the object store */
 	exchange = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
+
+
 	
 	/* Set the flags based on the bitmask we were given */
 	exchange->passive = IS_PASSIVE(flagBitmask);

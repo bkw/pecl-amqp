@@ -11,17 +11,17 @@ $ch = new AMQPChannel($cnn);
 
 // Declare a new exchange
 $ex = new AMQPExchange($ch);
-$ex->setName('exchange-' . time());
+$ex->setName('exchange1');
 $ex->setType(AMQP_EX_TYPE_FANOUT);
 $ex->declare();
 
 // Create a new queue
 $q = new AMQPQueue($ch);
-$q->setName('queue-' . time());
+$q->setName('queue1' . time());
 $q->declare();
 
 // Bind it on the exchange to routing.key
-$q->bind($ex->getName(), 'routing.*');
+$ex->bind($q->getName(), 'routing.*');
 
 // Publish a message to the exchange with a routing key
 $ex->publish('message', 'routing.1');
@@ -29,24 +29,16 @@ $ex->publish('message2', 'routing.2');
 $ex->publish('message3', 'routing.3');
 
 // Read from the queue
-$msg = $q->consume();
-var_dump($msg);
+$msgs = $q->getMessages(1, 3, AMQP_AUTOACK);
 
-$msg = $q->consume();
-var_dump($msg);
+foreach ($msgs as $msg) {
+    echo $msg["message_body"] . "\n";
+}
 
 $ex->delete();
 ?>
 --EXPECT--
-array(2) {
-  ["Content-type"]=>
-  string(10) "text/plain"
-  ["msg"]=>
-  string(7) "message"
-}
-array(2) {
-  ["Content-type"]=>
-  string(10) "text/plain"
-  ["msg"]=>
-  string(8) "message2"
-}
+message
+message2
+message3
+
