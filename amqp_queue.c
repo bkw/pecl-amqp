@@ -495,8 +495,8 @@ PHP_METHOD(amqp_queue_class, getMessages)
 	amqp_connection_object *connection;
 	
 	amqp_rpc_reply_t res;
-	long min_consume = INI_INT("amqp.min_messages");
-	long max_consume = INI_INT("amqp.max_messages");
+	long min_messages = INI_INT("amqp.min_messages");
+	long max_messages = INI_INT("amqp.max_messages");
 	long flags = INI_INT("amqp.auto_ack") ? AMQP_AUTOACK : AMQP_NOPARAM;
 	
 	char *pbuf;
@@ -504,7 +504,7 @@ PHP_METHOD(amqp_queue_class, getMessages)
 	int buf_max = FRAME_MAX;
 
 	/* Parse out the method parameters */
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|lll", &id, amqp_queue_class_entry, &min_consume, &max_consume, &flags) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|lll", &id, amqp_queue_class_entry, &min_messages, &max_consume, &flags) == FAILURE) {
 		return;
 	}
 	
@@ -527,7 +527,7 @@ PHP_METHOD(amqp_queue_class, getMessages)
 		connection->connection_resource->connection_state,
 		channel->channel_id,
 		0,							/* prefetch window size */
-		max_consume,				/* prefetch message count */
+		max_messages,				/* prefetch message count */
 		0							/* global flag */
 	);
 	
@@ -568,12 +568,12 @@ PHP_METHOD(amqp_queue_class, getMessages)
 	char *buf = NULL;
 	long last_delivery_tag;
 	
-	for (i = 0; i < max_consume; i++) {
+	for (i = 0; i < max_messages; i++) {
 
 		amqp_maybe_release_buffers(connection->connection_resource->connection_state);
 		
 		/* if we have met the minimum number of messages, check to see if there are messages left */
-		if (i >= min_consume) {
+		if (i >= min_messages) {
 			/* see if there are messages in the queue */ 
 			amqp_bytes_t amqp_name;
 			amqp_name = (amqp_bytes_t) {queue->name_len, queue->name};
