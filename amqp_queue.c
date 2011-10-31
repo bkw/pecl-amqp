@@ -504,7 +504,7 @@ PHP_METHOD(amqp_queue_class, getMessages)
 	int buf_max = FRAME_MAX;
 
 	/* Parse out the method parameters */
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|lll", &id, amqp_queue_class_entry, &min_messages, &max_consume, &flags) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|lll", &id, amqp_queue_class_entry, &min_messages, &max_messages, &flags) == FAILURE) {
 		return;
 	}
 	
