@@ -92,7 +92,7 @@ PHP_METHOD(amqp_exchange_class, __construct)
 	}
 	
 	if (!instanceof_function(Z_OBJCE_P(channelObj), amqp_channel_class_entry TSRMLS_CC)) {
-		zend_throw_exception(amqp_queue_exception_class_entry, "The first parameter must be and instance of AMQPChannel.", 0 TSRMLS_CC);
+		zend_throw_exception(amqp_exchange_exception_class_entry, "The first parameter must be and instance of AMQPChannel.", 0 TSRMLS_CC);
 		return;
 	}
 	
@@ -267,22 +267,22 @@ PHP_METHOD(amqp_exchange_class, setType)
 
 
 /* {{{ proto AMQPExchange::getArgument(string key)
-Get the queue argument referenced by key */
+Get the exchange argument referenced by key */
 PHP_METHOD(amqp_exchange_class, getArgument)
 {
 	zval *id;
 	zval **tmp;
-	amqp_queue_object *queue;
+	amqp_exchange_object *exchange;
 	char *key;
 	int key_len;
 	
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id, amqp_queue_class_entry, &key, &key_len) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id, amqp_exchange_class_entry, &key, &key_len) == FAILURE) {
 		return;
 	}
 
-	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
+	exchange = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
 	
-	if (zend_hash_find(Z_ARRVAL_P(queue->arguments), key, key_len + 1, (void **)&tmp) == FAILURE) {
+	if (zend_hash_find(Z_ARRVAL_P(exchange->arguments), key, key_len + 1, (void **)&tmp) == FAILURE) {
 		RETURN_FALSE;
 	}
 	
@@ -294,23 +294,23 @@ PHP_METHOD(amqp_exchange_class, getArgument)
 /* }}} */
 
 /* {{{ proto AMQPExchange::getArguments
-Get the queue arguments */
+Get the exchange arguments */
 PHP_METHOD(amqp_exchange_class, getArguments)
 {
 	zval *id;
-	amqp_queue_object *queue;
+	amqp_exchange_object *exchange;
 	
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_queue_class_entry) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_exchange_class_entry) == FAILURE) {
 		return;
 	}
 
-	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
+	exchange = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
 	
-	*return_value = *queue->arguments;
+	*return_value = *exchange->arguments;
 	zval_copy_ctor(return_value);
 
 	/* Increment the ref count */
-	Z_ADDREF_P(queue->arguments);
+	Z_ADDREF_P(exchange->arguments);
 }
 /* }}} */
 
@@ -755,8 +755,8 @@ PHP_METHOD(amqp_exchange_class, publish)
 /* }}} */
 
 
-/* {{{ proto int exchange::bind(string queueName, string routingKey);
-bind exchange to queue by routing key
+/* {{{ proto int exchange::bind(string srcExchangeName, string routingKey[, int flags]);
+bind exchange to exchange by routing key
 */
 PHP_METHOD(amqp_exchange_class, bind)
 {
@@ -765,15 +765,16 @@ PHP_METHOD(amqp_exchange_class, bind)
 	amqp_channel_object *channel;
 	amqp_connection_object *connection;
 	
-	char *queue_name;
-	int queue_name_len;
+	char *src_name;
+	int src_name_len;
 	char *keyname;
 	int keyname_len;
+	int flags;
 
 	amqp_rpc_reply_t res;
 	amqp_rpc_reply_t result;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss", &id, amqp_exchange_class_entry, &queue_name, &queue_name_len, &keyname, &keyname_len) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss|l", &id, amqp_exchange_class_entry, &src_name, &src_name_len, &keyname, &keyname_len, &flags) == FAILURE) {
 		return;
 	}
 
@@ -785,27 +786,26 @@ PHP_METHOD(amqp_exchange_class, bind)
 	connection = AMQP_GET_CONNECTION(channel);
 	AMQP_VERIFY_CONNECTION(connection, "Could not bind to exchanges.");
 
-	amqp_queue_bind_t s;
+	amqp_exchange_bind_t s;
 	s.ticket				= 0;
-	s.queue.len				= queue_name_len;
-	s.queue.bytes			= queue_name;
-	s.exchange.len			= exchange->name_len;
-	s.exchange.bytes		= exchange->name;
+	s.destination.len		= exchange->name_len;
+	s.destination.bytes		= exchange->name;
+	s.source.len			= src_name_len;
+	s.source.bytes			= src_name;
 	s.routing_key.len		= keyname_len;
 	s.routing_key.bytes		= keyname;
-	s.nowait				= 0;
+	s.nowait				= IS_NOWAIT(flags);
 	s.arguments.num_entries = 0;
 	s.arguments.entries		= NULL;
 
-	amqp_method_number_t method_ok = AMQP_QUEUE_BIND_OK_METHOD;
-	result = amqp_simple_rpc(
+	amqp_method_number_t method_ok = AMQP_EXCHANGE_BIND_OK_METHOD;
+	res = amqp_simple_rpc(
 		connection->connection_resource->connection_state,
 		channel->channel_id,
-		AMQP_QUEUE_BIND_METHOD,
+		AMQP_EXCHANGE_BIND_METHOD,
 		&method_ok,
-		&s);
-
-	res = (amqp_rpc_reply_t)result;
+		&s
+	);
 
 	if (res.reply_type != AMQP_RESPONSE_NORMAL) {
 		char str[256];

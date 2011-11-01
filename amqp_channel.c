@@ -279,7 +279,7 @@ PHP_METHOD(amqp_channel_class, qos)
 			channel->channel_id,
 			channel->prefetch_size,
 			channel->prefetch_count,
-			0
+			0							/* Global flag - whether this change should affect every channel */
 		);
 	}
 		
@@ -324,7 +324,7 @@ PHP_METHOD(amqp_channel_class, startTransaction)
 		amqp_error(res, pstr);
 
 		channel->is_connected = 0;
-		zend_throw_exception(amqp_queue_exception_class_entry, *pstr, 0 TSRMLS_CC);
+		zend_throw_exception(amqp_channel_exception_class_entry, *pstr, 0 TSRMLS_CC);
 		return;
 	}
 		
@@ -369,7 +369,7 @@ PHP_METHOD(amqp_channel_class, commitTransaction)
 		amqp_error(res, pstr);
 
 		channel->is_connected = 0;
-		zend_throw_exception(amqp_queue_exception_class_entry, *pstr, 0 TSRMLS_CC);
+		zend_throw_exception(amqp_channel_exception_class_entry, *pstr, 0 TSRMLS_CC);
 		return;
 	}
 		
@@ -413,7 +413,7 @@ PHP_METHOD(amqp_channel_class, rollbackTransaction)
 		amqp_error(res, pstr);
 
 		channel->is_connected = 0;
-		zend_throw_exception(amqp_queue_exception_class_entry, *pstr, 0 TSRMLS_CC);
+		zend_throw_exception(amqp_channel_exception_class_entry, *pstr, 0 TSRMLS_CC);
 		return;
 	}
 		

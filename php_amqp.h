@@ -134,6 +134,7 @@ extern zend_module_entry amqp_module_entry;
 #define AMQP_MANDATORY		1024
 #define AMQP_IMMEDIATE		2048
 #define AMQP_MULTIPLE		4096
+#define AMQP_NOWAIT			8192
 
 #define AMQP_EX_TYPE_DIRECT		"direct"
 #define AMQP_EX_TYPE_FANOUT		"fanout"
@@ -181,10 +182,11 @@ extern zend_class_entry *amqp_exception_class_entry,
 
 
 #define EMPTY_ARGUMENTS			{0, NULL};
-#define IS_PASSIVE(bitmask)		(AMQP_PASSIVE & bitmask) ? 1 : 0;
-#define IS_DURABLE(bitmask)		(AMQP_DURABLE & bitmask) ? 1 : 0;
-#define IS_EXCLUSIVE(bitmask)	(AMQP_EXCLUSIVE & bitmask) ? 1 : 0;
-#define IS_AUTODELETE(bitmask)	(AMQP_AUTODELETE & bitmask) ? 1 : 0;
+#define IS_PASSIVE(bitmask)		(AMQP_PASSIVE & (bitmask)) ? 1 : 0;
+#define IS_DURABLE(bitmask)		(AMQP_DURABLE & (bitmask)) ? 1 : 0;
+#define IS_EXCLUSIVE(bitmask)	(AMQP_EXCLUSIVE & (bitmask)) ? 1 : 0;
+#define IS_AUTODELETE(bitmask)	(AMQP_AUTODELETE & (bitmask)) ? 1 : 0;
+#define IS_NOWAIT(bitmask)		(AMQP_NOWAIT & (bitmask)) ? 1 : 0;
 
 #define AMQP_SET_NAME(object, str) \
 	(object)->name_len = strlen(str) >= sizeof((object)->name) ? sizeof((object)->name) - 1 : strlen(str); \
