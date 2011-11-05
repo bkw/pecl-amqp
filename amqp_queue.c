@@ -490,7 +490,7 @@ return array (messages)
 PHP_METHOD(amqp_queue_class, getMessages)
 {
 	zval *id;
-	amqp_queue_object *queue;
+    amqp_queue_object *queue;
 	amqp_channel_object *channel;
 	amqp_connection_object *connection;
 	
@@ -544,7 +544,7 @@ PHP_METHOD(amqp_queue_class, getMessages)
 	);
 	
 	/* verify there are no errors before grabbing the messages */
-	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(connection->connection_resource->connection_state);	
+	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(connection->connection_resource->connection_state);
 	if (res.reply_type != AMQP_RESPONSE_NORMAL) {
 		channel->is_connected = 0;
 		char str[256];
@@ -829,22 +829,6 @@ PHP_METHOD(amqp_queue_class, getMessages)
 		
 		efree(buf);
 	}
-	
-	/* We are done. Before we ack, we need to first cancel this consumer */
-	amqp_method_number_t method_ok = AMQP_BASIC_CANCEL_OK_METHOD;
-	amqp_basic_cancel_t s;
-	
-	s.consumer_tag.len = queue->consumer_tag_len;
-	s.consumer_tag.bytes = queue->consumer_tag;
-	s.nowait = 0;
-	
-	amqp_simple_rpc(
-		connection->connection_resource->connection_state,
-		channel->channel_id,
-		AMQP_BASIC_CANCEL_METHOD,
-		&method_ok,
-		&s
-	);
 	
 	/* If we have chosen to auto_ack, meaning that we do not need to acknowledge at a later date, acknowledge now */
 	if (flags & AMQP_AUTOACK) {
