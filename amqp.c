@@ -492,7 +492,7 @@ amqp_table_t *convert_zval_to_arguments(zval *zvalArguments)
 	amqp_table_t *arguments = (amqp_table_t *)emalloc(sizeof(amqp_table_t));
 
 	/* Allocate all the memory necessary for storing the arguments */
-	arguments->entries = (amqp_table_entry_t *)emalloc(zend_hash_num_elements(argumentHash) * sizeof(amqp_table_entry_t));
+	arguments->entries = (amqp_table_entry_t *)ecalloc(zend_hash_num_elements(argumentHash), sizeof(amqp_table_entry_t));
 	arguments->num_entries = 0;
 
 	for (zend_hash_internal_pointer_reset_ex(argumentHash, &pos);
@@ -519,7 +519,6 @@ amqp_table_t *convert_zval_to_arguments(zval *zvalArguments)
 		amqp_field_value_t *field = &table->value;
 		char *strKey = estrndup(key, key_len);
 		table->key = amqp_cstring_bytes(strKey);
-		efree(strKey);
 	
 		switch (Z_TYPE_P(&value)) {
 			case IS_BOOL:
@@ -535,10 +534,9 @@ amqp_table_t *convert_zval_to_arguments(zval *zvalArguments)
 				field->value.i64 = Z_LVAL_P(&value);
 				break;
 			case IS_STRING:
-				field->kind = AMQP_FIELD_KIND_BYTES;
+				field->kind = AMQP_FIELD_KIND_UTF8;
 				char *strValue = estrndup(Z_STRVAL_P(&value), Z_STRLEN_P(&value));
 				field->value.bytes = amqp_cstring_bytes(strValue);
-				efree(strValue);
 				break;
 			default:
 				continue;

@@ -379,7 +379,7 @@ PHP_METHOD(amqp_queue_class, declare)
 	AMQP_VERIFY_CONNECTION(connection, "Could not declare queue.");
 	
 	amqp_table_t *arguments = convert_zval_to_arguments(queue->arguments);
-
+	
 	r = amqp_queue_declare(
 		connection->connection_resource->connection_state,
 		channel->channel_id,
@@ -522,13 +522,13 @@ PHP_METHOD(amqp_queue_class, getMessages)
 	connection = AMQP_GET_CONNECTION(channel);
 	AMQP_VERIFY_CONNECTION(connection, "Could not get messages from queue.");
 	
-	/* Set the QOS for this channel to match the max_messages */
+	/* Set the QOS for this channel to only pull off one message at a time */
 	amqp_basic_qos(
 		connection->connection_resource->connection_state,
 		channel->channel_id,
-		0,							/* prefetch window size */
-		max_messages,				/* prefetch message count */
-		0							/* global flag */
+		0,						/* prefetch window size */
+		1,						/* prefetch message count */
+		0						/* global flag */
 	);
 	
 	/* Dont set the auto_ack flag. We are going to not acknowledge the message here, and then, when processed, we will check the  flag and acknowledge at the time. */
@@ -566,12 +566,12 @@ PHP_METHOD(amqp_queue_class, getMessages)
 	int i;
 	array_init(return_value);
 	char *buf = NULL;
-	long last_delivery_tag;
+	long last_delivery_tag = -1;
 	
 	for (i = 0; i < max_messages; i++) {
-
+	
 		amqp_maybe_release_buffers(connection->connection_resource->connection_state);
-		
+			
 		/* if we have met the minimum number of messages, check to see if there are messages left */
 		if (i >= min_messages) {
 			/* see if there are messages in the queue */ 
@@ -610,10 +610,10 @@ PHP_METHOD(amqp_queue_class, getMessages)
 				break;
 			}
 		}
-
+	
 		/* get next frame from the queue (blocks) */
 		result = amqp_simple_wait_frame(connection->connection_resource->connection_state, &frame);
-		
+			
 		/* check frame validity */
 		if (result < 0) {
 			return;
@@ -632,7 +632,7 @@ PHP_METHOD(amqp_queue_class, getMessages)
 
 		/* get message metadata */
 		amqp_basic_deliver_t * delivery = (amqp_basic_deliver_t *) frame.payload.method.decoded;
-
+	
 		add_assoc_stringl_ex(message,	"consumer_tag", 13, delivery->consumer_tag.bytes, 	delivery->consumer_tag.len, 1);
 		add_assoc_long_ex(message,		"delivery_tag", 13, delivery->delivery_tag);
 		add_assoc_bool_ex(message,		"redelivered", 	12, delivery->redelivered);
@@ -711,7 +711,7 @@ PHP_METHOD(amqp_queue_class, getMessages)
 				p->reply_to.bytes,
 				p->reply_to.len, 1);
 		}
-
+	
 		if (p->_flags & AMQP_BASIC_CORRELATION_ID_FLAG) {
 			add_assoc_stringl_ex(message, "correlation_id", sizeof("correlation_id"),
 				p->correlation_id.bytes,
@@ -721,7 +721,7 @@ PHP_METHOD(amqp_queue_class, getMessages)
 		if (p->_flags & AMQP_BASIC_HEADERS_FLAG) {
 			zval *headers;
 			int   i;
-
+		
 			MAKE_STD_ZVAL(headers);
 			array_init(headers);
 			for (i = 0; i < p->headers.num_entries; i++) {
@@ -779,7 +779,7 @@ PHP_METHOD(amqp_queue_class, getMessages)
 
 			add_assoc_zval_ex(message, "headers", sizeof("headers"), headers);
 		}
-
+	
 		body_target = frame.payload.properties.body_size;
 		body_received = 0;
 		
@@ -788,7 +788,7 @@ PHP_METHOD(amqp_queue_class, getMessages)
 			zend_throw_exception(zend_exception_get_default(TSRMLS_C), "Out of memory (malloc)" ,0 TSRMLS_CC);   
 			return;
 		}
-
+	
 		/* resize buffer if necessary */
 		if (body_target > buf_max) {
 			int count_buf = body_target / FRAME_MAX +1;
@@ -802,7 +802,7 @@ PHP_METHOD(amqp_queue_class, getMessages)
 			}
 			buf = pbuf; 
 		}
-
+	
 		pbuf = buf;
 		while (body_received < body_target) {
 			result = amqp_simple_wait_frame(connection->connection_resource->connection_state, &frame);
@@ -820,19 +820,19 @@ PHP_METHOD(amqp_queue_class, getMessages)
 			pbuf += frame.payload.body_fragment.len;
 
 		} /* end while	*/
-
+	
 		/* add message body to message */
 		add_assoc_stringl_ex(message, "message_body", sizeof("message_body"), buf, body_target, 1);
-		
+			
 		/* add message to return value */
 		add_index_zval(return_value, i, message);
-		
+			
 		efree(buf);
 	}
 	
 	/* If we have chosen to auto_ack, meaning that we do not need to acknowledge at a later date, acknowledge now */
-	if (flags & AMQP_AUTOACK) {
-		amqp_basic_ack(
+	if (flags & AMQP_AUTOACK && last_delivery_tag != -1) {
+			amqp_basic_ack(
 			connection->connection_resource->connection_state,
 			channel->channel_id,
 			last_delivery_tag,

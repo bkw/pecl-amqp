@@ -199,9 +199,17 @@ extern zend_class_entry *amqp_exception_class_entry,
 	(object)->type[(object)->type_len] = '\0';
 
 #define AMQP_EFREE_ARGUMENTS(object) \
-	if ((object)->entries) \
-		efree(object->entries); \
-	efree(object);
+	if ((object)->entries) { \
+		int macroEntryCounter; \
+		for (macroEntryCounter = 0; macroEntryCounter < (object)->num_entries; macroEntryCounter++) { \
+			efree((object)->entries[macroEntryCounter].key.bytes); \
+			if ((object)->entries[macroEntryCounter].value.kind == AMQP_FIELD_KIND_UTF8) { \
+				efree((object)->entries[macroEntryCounter].value.value.bytes.bytes); \
+			} \
+		} \
+		efree((object)->entries); \
+	} \
+	efree(object); \
 
 #define AMQP_GET_CHANNEL(object) \
  	(amqp_channel_object *) zend_object_store_get_object((object)->channel TSRMLS_CC); \
