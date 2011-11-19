@@ -415,6 +415,7 @@ zend_module_entry amqp_module_entry = {
 
 void amqp_error(amqp_rpc_reply_t x, char ** pstr)
 {
+	/* Trim new lines */
 	switch (x.reply_type) {
 		case AMQP_RESPONSE_NORMAL:
 			return;
@@ -424,7 +425,7 @@ void amqp_error(amqp_rpc_reply_t x, char ** pstr)
 			break;
 
 		case AMQP_RESPONSE_LIBRARY_EXCEPTION:
-			spprintf(pstr, 0, "Library error: %s\n", amqp_error_string(x.library_error));
+			spprintf(pstr, 0, "Library error: %s", amqp_error_string(x.library_error));
 			break;
 			
 		case AMQP_RESPONSE_SERVER_EXCEPTION:

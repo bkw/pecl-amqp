@@ -120,6 +120,7 @@ void php_amqp_connect(amqp_connection_object *connection, int persistent TSRMLS_
 
 	if (x.reply_type != AMQP_RESPONSE_NORMAL) {
 		amqp_error(x, pstr);
+		strcat(*pstr, " - Potential login failure.");
 		zend_throw_exception(amqp_connection_exception_class_entry, *pstr, 0 TSRMLS_CC);
 		return;
 	}
