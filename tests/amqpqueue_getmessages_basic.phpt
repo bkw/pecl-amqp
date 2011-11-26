@@ -20,16 +20,22 @@ $q = new AMQPQueue($ch);
 $q->setName('queue1' . time());
 $q->declare();
 
+echo __FILE__ . ':' . __LINE__ . "\n";
 // Bind it on the exchange to routing.key
-$ex->bind($q->getName(), 'routing.*');
-
+$q->bind($ex->getName(), 'routing.*');
+echo __FILE__ . ':' . __LINE__ . "\n";
 // Publish a message to the exchange with a routing key
 $ex->publish('message', 'routing.1');
+echo __FILE__ . ':' . __LINE__ . "\n";
 $ex->publish('message2', 'routing.2');
+echo __FILE__ . ':' . __LINE__ . "\n";
 $ex->publish('message3', 'routing.3');
+echo __FILE__ . ':' . __LINE__ . "\n";
 
 // Read from the queue
+echo __FILE__ . ':' . __LINE__ . "\n";
 $msgs = $q->getMessages(1, 3, AMQP_AUTOACK);
+echo __FILE__ . ':' . __LINE__ . "\n";
 
 foreach ($msgs as $msg) {
     echo $msg["message_body"] . "\n";
