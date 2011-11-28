@@ -180,6 +180,10 @@ extern zend_class_entry *amqp_exception_class_entry,
 #define DEFAULT_PREFETCH_COUNT				"3"
 #define DEFAULT_CHANNELS_PER_CONNECTION 	255
 
+#define AMQP_READ_SUCCESS					1
+#define AMQP_READ_NO_MESSAGES				0
+#define AMQP_READ_ERROR						-1
+
 
 #define EMPTY_ARGUMENTS			{0, NULL};
 #define IS_PASSIVE(bitmask)		(AMQP_PASSIVE & (bitmask)) ? 1 : 0;

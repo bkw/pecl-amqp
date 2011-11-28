@@ -87,6 +87,216 @@ zend_object_value amqp_queue_ctor(zend_class_entry *ce TSRMLS_DC)
 	return new_value;
 }
 
+/*
+Read a message that is pending on a channel. A call to basic.get or basic.consume must preceed this call.
+*/
+int read_message_from_queue(amqp_connection_state_t connection, zval *message) {
+	size_t body_received = 0;
+	size_t body_target = 0;
+	char *message_body_buffer = NULL;
+	amqp_frame_t frame;
+	
+	/* The "standard" for this is to continuously loop over frames in the pipeline until an entire message is read */
+	while (1) {
+		/* Release pending buffers for ingestion */
+		amqp_maybe_release_buffers(connection);
+		int result = amqp_simple_wait_frame(connection, &frame);
+		
+		/* Check that the basic read from frame did not fail */
+		if (result < 0) {
+			return AMQP_READ_ERROR;
+		}
+		
+		if (frame.payload.method.id == AMQP_CHANNEL_CLOSE_OK_METHOD) {
+			amqp_channel_close_t *err = (amqp_channel_close_t *)frame.payload.method.decoded;
+			char str[256];
+			char **pstr = (char **)&str;
+			spprintf(pstr, 0, "Server error: %d", (int)err->reply_code);
+			zend_throw_exception(amqp_queue_exception_class_entry, *pstr, 0 TSRMLS_CC);
+			return AMQP_READ_ERROR;
+		}
+		
+		if (frame.frame_type == AMQP_FRAME_METHOD) {
+			if (frame.payload.method.id == AMQP_BASIC_GET_OK_METHOD) {
+				/* get message metadata */
+				amqp_basic_get_ok_t *delivery = (amqp_basic_get_ok_t *) frame.payload.method.decoded;
+				
+				add_assoc_stringl_ex(	message, 	"routing_key", 	12, delivery->routing_key.bytes, delivery->routing_key.len, 1);
+				add_assoc_long_ex(		message,	"delivery_tag", 13, delivery->delivery_tag);
+				add_assoc_bool_ex(		message,	"redelivered", 	12, delivery->redelivered);
+				add_assoc_stringl_ex(	message,	"exchange", 	9, 	delivery->exchange.bytes, delivery->exchange.len, 1);
+			}
+			
+			if (frame.payload.method.id == AMQP_BASIC_GET_EMPTY_METHOD) {
+				return AMQP_READ_NO_MESSAGES;
+			}
+			
+			/* This frame has been consumed, read in the next frame */
+			continue;
+		}
+		
+		if (frame.frame_type == AMQP_FRAME_HEADER) {
+			body_target = frame.payload.properties.body_size;
+			
+			message_body_buffer = (char *) emalloc(body_target);
+			memset(message_body_buffer, 0, body_target);
+			
+			amqp_basic_properties_t * p = (amqp_basic_properties_t *) frame.payload.properties.decoded;
+
+			if (p->_flags & AMQP_BASIC_CONTENT_TYPE_FLAG) {
+				add_assoc_stringl_ex(message, "Content-type", sizeof("Content-type"),
+					p->content_type.bytes,
+					p->content_type.len, 1);
+				}
+
+			if (p->_flags & AMQP_BASIC_CONTENT_ENCODING_FLAG) {
+				add_assoc_stringl_ex(message, "Content-encoding", sizeof("Content-encoding"),
+					p->content_encoding.bytes,
+					p->content_encoding.len, 1);
+			}
+
+			if (p->_flags & AMQP_BASIC_TYPE_FLAG) {
+				add_assoc_stringl_ex(message, "type", sizeof("type"),
+					p->type.bytes,
+					p->type.len, 1);
+			}
+
+			if (p->_flags & AMQP_BASIC_TIMESTAMP_FLAG) {
+				add_assoc_long(message, "timestamp", p->timestamp);
+			}
+
+			if (p->_flags & AMQP_BASIC_PRIORITY_FLAG) {
+				add_assoc_long(message, "priority", p->priority);
+			}
+
+			if (p->_flags & AMQP_BASIC_EXPIRATION_FLAG) {
+				add_assoc_stringl_ex(message, "expiration", sizeof("expiration"),
+					p->expiration.bytes,
+					p->expiration.len, 1);
+			}
+
+			if (p->_flags & AMQP_BASIC_USER_ID_FLAG) {
+				add_assoc_stringl_ex(message, "user_id", sizeof("user_id"),
+					p->user_id.bytes,
+					p->user_id.len, 1);
+			}
+
+			if (p->_flags & AMQP_BASIC_APP_ID_FLAG) {
+				add_assoc_stringl_ex(message, "app_id", sizeof("app_id"),
+					p->app_id.bytes,
+					p->app_id.len, 1 );
+			}
+
+			if (p->_flags & AMQP_BASIC_MESSAGE_ID_FLAG) {
+				add_assoc_stringl_ex(message, "message_id", sizeof("message_id"),
+					p->message_id.bytes,
+					p->message_id.len, 1);
+			}
+
+			if (p->_flags & AMQP_BASIC_REPLY_TO_FLAG) {
+				add_assoc_stringl_ex(message, "Reply-to", sizeof("Reply-to"),
+					p->reply_to.bytes,
+					p->reply_to.len, 1);
+			}
+
+			if (p->_flags & AMQP_BASIC_CORRELATION_ID_FLAG) {
+				add_assoc_stringl_ex(message, "correlation_id", sizeof("correlation_id"),
+					p->correlation_id.bytes,
+					p->correlation_id.len, 1);
+			}
+
+			if (p->_flags & AMQP_BASIC_HEADERS_FLAG) {
+				zval *headers;
+				int   i;
+
+				MAKE_STD_ZVAL(headers);
+				array_init(headers);
+				for (i = 0; i < p->headers.num_entries; i++) {
+					amqp_table_entry_t *entry = &(p->headers.entries[i]);
+
+					switch (entry->value.kind) {
+						case AMQP_FIELD_KIND_BOOLEAN:
+							add_assoc_bool_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.boolean);
+							break;
+						case AMQP_FIELD_KIND_I8:
+							add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.i8);
+							break;
+						case AMQP_FIELD_KIND_U8:
+							add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.u8);
+							break;
+						case AMQP_FIELD_KIND_I16:
+							add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.i16);
+							break;
+						case AMQP_FIELD_KIND_U16:
+							add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.u16);
+							break;
+						case AMQP_FIELD_KIND_I32:
+							add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.i32);
+							break;
+						case AMQP_FIELD_KIND_U32:
+							add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.u32);
+							break;
+						case AMQP_FIELD_KIND_I64:
+							add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.i64);
+							break;
+						case AMQP_FIELD_KIND_U64:
+							add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.u64);
+							break;
+						case AMQP_FIELD_KIND_F32:
+							add_assoc_double_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.f32);
+							break;
+						case AMQP_FIELD_KIND_F64:
+							add_assoc_double_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.f64);
+							break;
+						case AMQP_FIELD_KIND_UTF8:
+							add_assoc_stringl_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.bytes.bytes, entry->value.value.bytes.len, 1);
+							break;
+						case AMQP_FIELD_KIND_BYTES:
+							add_assoc_stringl_ex(headers, entry->key.bytes, entry->key.len, entry->value.value.bytes.bytes, entry->value.value.bytes.len, 1);
+							break;
+
+						case AMQP_FIELD_KIND_ARRAY:
+						case AMQP_FIELD_KIND_TIMESTAMP:
+						case AMQP_FIELD_KIND_TABLE:
+						case AMQP_FIELD_KIND_VOID:
+						case AMQP_FIELD_KIND_DECIMAL:
+						break;
+					}
+				}
+
+				add_assoc_zval_ex(message, "headers", sizeof("headers"), headers);
+			}
+			
+			/* Check if we are going to even get a body */
+			if (frame.payload.properties.body_size == 0) {
+				/* No point in reading the next frame. Bail! */
+				break;
+			}
+			
+			/* This frame has been consumed, read in the next frame */
+			continue;
+		}
+		
+		if (frame.frame_type == AMQP_FRAME_BODY) {
+			memcpy(message_body_buffer + body_received, frame.payload.body_fragment.bytes, frame.payload.body_fragment.len);
+			body_received += frame.payload.body_fragment.len;
+			
+			/* Check if we have read in the entire body, ergo we have processed the entire message */
+			if (body_received >= body_target) {
+				break;
+			}
+		}
+	}
+	
+	/* Put the final touches into the zval */
+	add_assoc_stringl_ex(message, "message_body", sizeof("message_body"), message_body_buffer, body_target, 1);
+	
+	/* Free memory allocation */
+	efree(message_body_buffer);
+	
+	return AMQP_READ_SUCCESS;
+}
+
 /* {{{ proto AMQPQueue::__construct(AMQPChannel channel)
 AMQPQueue constructor
 */
@@ -483,11 +693,11 @@ PHP_METHOD(amqp_queue_class, bind)
 /* }}} */
 
 
-/* {{{ proto int AMQPQueue::getMessages([min, [max, [bit flags=AMQP_NOPARAM ]]]);
+/* {{{ proto int AMQPQueue::get([bit flags=AMQP_NOPARAM]);
 read messages from queue
 return array (messages)
 */
-PHP_METHOD(amqp_queue_class, getMessages)
+PHP_METHOD(amqp_queue_class, get)
 {
 	zval *id;
     amqp_queue_object *queue;
@@ -530,314 +740,48 @@ PHP_METHOD(amqp_queue_class, getMessages)
 		1,						/* prefetch message count */
 		0						/* global flag */
 	);
-	
-	/* Dont set the auto_ack flag. We are going to not acknowledge the message here, and then, when processed, we will check the  flag and acknowledge at the time. */
-	amqp_basic_consume(
-		connection->connection_resource->connection_state,
-		channel->channel_id,
-		amqp_cstring_bytes(queue->name),
-		AMQP_EMPTY_BYTES,					/* Consume tag */
-		(AMQP_NOLOCAL & flags) ? 1 : 0, 	/* No local */
-		0,									/* no_ack, aka AUTOACK */
-		queue->exclusive,
-		AMQP_EMPTY_TABLE
-	);
-	
-	/* verify there are no errors before grabbing the messages */
-	res = (amqp_rpc_reply_t)amqp_get_rpc_reply(connection->connection_resource->connection_state);
-	if (res.reply_type != AMQP_RESPONSE_NORMAL) {
-		channel->is_connected = 0;
-		char str[256];
-		char ** pstr = (char **) &str;
-		amqp_error(res, pstr);
-		zend_throw_exception(amqp_queue_exception_class_entry, *pstr, 0 TSRMLS_CC);
-		return;
-	}
-	
-	amqp_basic_consume_ok_t *r = (amqp_basic_consume_ok_t *) res.reply.decoded;
-
-	memcpy(queue->consumer_tag, r->consumer_tag.bytes, r->consumer_tag.len);
-	queue->consumer_tag_len = r->consumer_tag.len;
-
-	amqp_frame_t frame;
-	int result;
-	size_t body_received;
-	size_t body_target;
-	int i;
-	array_init(return_value);
-	char *buf = NULL;
-	long last_delivery_tag = -1;
-	
-	for (i = 0; i < max_messages; i++) {
-	
-		amqp_maybe_release_buffers(connection->connection_resource->connection_state);
-			
-		/* if we have met the minimum number of messages, check to see if there are messages left */
-		if (i >= min_messages) {
-			/* see if there are messages in the queue */ 
-			amqp_bytes_t amqp_name;
-			amqp_name = (amqp_bytes_t) {queue->name_len, queue->name};
-			amqp_table_t *arguments = convert_zval_to_arguments(queue->arguments);
-
-			amqp_queue_declare_ok_t *r = amqp_queue_declare(
-				connection->connection_resource->connection_state,
-				channel->channel_id,
-				amqp_name,
-				queue->passive,
-				queue->durable,
-				queue->exclusive,
-				queue->auto_delete,
-				*arguments
-			);
-			
-			AMQP_EFREE_ARGUMENTS(arguments);
 		
-			/* Verify that we got a response: */
-			if (!r) {
-				zend_throw_exception(amqp_queue_exception_class_entry, "Could not get messages, failed to read from queue.", 0 TSRMLS_CC);
-				return;
-			}
-			
-			int messages_in_queue = r->message_count;
-								
-			/* see if there are frames enqueued */
-			amqp_boolean_t frames = amqp_frames_enqueued(connection->connection_resource->connection_state);
-			
-			/* see if there is any unread data in the buffer */
-			amqp_boolean_t buffer = amqp_data_in_buffer(connection->connection_resource->connection_state);
-			
-			if (!messages_in_queue && !frames && !buffer) {
-				break;
-			}
-		}
+	array_init(return_value);
 	
-		/* get next frame from the queue (blocks) */
-		result = amqp_simple_wait_frame(connection->connection_resource->connection_state, &frame);
-			
-		/* check frame validity */
-		if (result < 0) {
-			return;
-		}
-		if (frame.frame_type != AMQP_FRAME_METHOD) {
-			continue;
-		}
-		if (frame.payload.method.id != AMQP_BASIC_DELIVER_METHOD) {
-			continue;
-		}
+	int received_messages = 0;
+	while(received_messages < max_messages) {
 
-		/* initialize message array */
+		/* Build basic.get request */
+		amqp_basic_get_t s;
+		
+		s.ticket = 0,
+		s.queue = amqp_cstring_bytes(queue->name);
+		s.no_ack = (AMQP_AUTOACK & flags) ? 1 : 0;
+
+		/* Get the next message using basic.get */
+		int status = amqp_send_method(
+			connection->connection_resource->connection_state,
+			channel->channel_id,
+			AMQP_BASIC_GET_METHOD,
+			&s
+		);
+		
 		zval *message;
 		MAKE_STD_ZVAL(message);
 		array_init(message);
-
-		/* get message metadata */
-		amqp_basic_deliver_t * delivery = (amqp_basic_deliver_t *) frame.payload.method.decoded;
-	
-		add_assoc_stringl_ex(message,	"consumer_tag", 13, delivery->consumer_tag.bytes, 	delivery->consumer_tag.len, 1);
-		add_assoc_long_ex(message,		"delivery_tag", 13, delivery->delivery_tag);
-		add_assoc_bool_ex(message,		"redelivered", 	12, delivery->redelivered);
-		add_assoc_stringl_ex(message,	"routing_key", 	12, delivery->routing_key.bytes, 	delivery->routing_key.len, 1);
-		add_assoc_stringl_ex(message,	"exchange", 	9, 	delivery->exchange.bytes, 		delivery->exchange.len, 1);			
 		
-		/* Copy the delivery tag to our higher scoper storage layer so we can ack everything up to the last delivery tag */
-		last_delivery_tag = delivery->delivery_tag;
-
-		/* get header frame (blocks) */
-		result = amqp_simple_wait_frame(connection->connection_resource->connection_state, &frame);
-		if (result < 0) {
-			zend_throw_exception(amqp_queue_exception_class_entry, "The returned read frame is invalid.", 0 TSRMLS_CC);
-			return;
-		}
-
-		if (frame.frame_type != AMQP_FRAME_HEADER) {
-			zend_throw_exception(amqp_queue_exception_class_entry, "The returned frame type is invalid.", 0 TSRMLS_CC);
-			return;
+		int read = read_message_from_queue(connection->connection_resource->connection_state, message);
+		
+		if (read == AMQP_READ_SUCCESS) {
+			/* We received a valid message */
+			received_messages++;
+			
+			/* Append the messages to the return value */
+			add_index_zval(return_value, received_messages, message);
+		} else {
+			/* Clean up only if unused */
+			efree(message);
 		}
 		
-		amqp_basic_properties_t * p = (amqp_basic_properties_t *) frame.payload.properties.decoded;
-
-		if (p->_flags & AMQP_BASIC_CONTENT_TYPE_FLAG) {
-			add_assoc_stringl_ex(message, "Content-type", 13,
-				p->content_type.bytes,
-				p->content_type.len, 1);
-			}
-			
-		if (p->_flags & AMQP_BASIC_CONTENT_ENCODING_FLAG) {
-			add_assoc_stringl_ex(message, "Content-encoding", sizeof("Content-encoding"),
-				p->content_encoding.bytes,
-				p->content_encoding.len, 1);
+		/* Check if there were any more messages to read, and bail if we have our minimum number of messages */
+		if (read == AMQP_READ_NO_MESSAGES && received_messages >= min_messages) {
+			break;
 		}
-		
-		if (p->_flags & AMQP_BASIC_TYPE_FLAG) {
-			add_assoc_stringl_ex(message, "type", sizeof("type"),
-				p->type.bytes,
-				p->type.len, 1);
-		}
-	
-		if (p->_flags & AMQP_BASIC_TIMESTAMP_FLAG) {
-			add_assoc_long(message, "timestamp", p->timestamp);
-		}
-
-		if (p->_flags & AMQP_BASIC_PRIORITY_FLAG) {
-			add_assoc_long(message, "priority", p->priority);
-		}
-			
-		if (p->_flags & AMQP_BASIC_EXPIRATION_FLAG) {
-			add_assoc_stringl_ex(message, "expiration", sizeof("expiration"),
-				p->expiration.bytes,
-				p->expiration.len, 1);
-		}
-			
-		if (p->_flags & AMQP_BASIC_USER_ID_FLAG) {
-			add_assoc_stringl_ex(message, "user_id", sizeof("user_id"),
-				p->user_id.bytes,
-				p->user_id.len, 1);
-		}
-			
-		if (p->_flags & AMQP_BASIC_APP_ID_FLAG) {
-			add_assoc_stringl_ex(message, "app_id", sizeof("app_id"),
-				p->app_id.bytes,
-				p->app_id.len, 1 );
-		}
-
-		if (p->_flags & AMQP_BASIC_MESSAGE_ID_FLAG) {
-			add_assoc_stringl_ex(message, "message_id", sizeof("message_id"),
-				p->message_id.bytes,
-				p->message_id.len, 1);
-		}
-
-		if (p->_flags & AMQP_BASIC_REPLY_TO_FLAG) {
-			add_assoc_stringl_ex(message, "Reply-to", sizeof("Reply-to"),
-				p->reply_to.bytes,
-				p->reply_to.len, 1);
-		}
-	
-		if (p->_flags & AMQP_BASIC_CORRELATION_ID_FLAG) {
-			add_assoc_stringl_ex(message, "correlation_id", sizeof("correlation_id"),
-				p->correlation_id.bytes,
-				p->correlation_id.len, 1);
-		}
-
-		if (p->_flags & AMQP_BASIC_HEADERS_FLAG) {
-			zval *headers;
-			int   i;
-		
-			MAKE_STD_ZVAL(headers);
-			array_init(headers);
-			for (i = 0; i < p->headers.num_entries; i++) {
-				amqp_table_entry_t *entry = &(p->headers.entries[i]);
-
-				switch (entry->value.kind) {
-					case AMQP_FIELD_KIND_BOOLEAN:
-						add_assoc_bool_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.boolean);
-						break;
-					case AMQP_FIELD_KIND_I8:
-						add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.i8);
-						break;
-					case AMQP_FIELD_KIND_U8:
-						add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.u8);
-						break;
-					case AMQP_FIELD_KIND_I16:
-						add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.i16);
-						break;
-					case AMQP_FIELD_KIND_U16:
-						add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.u16);
-						break;
-					case AMQP_FIELD_KIND_I32:
-						add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.i32);
-						break;
-					case AMQP_FIELD_KIND_U32:
-						add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.u32);
-						break;
-					case AMQP_FIELD_KIND_I64:
-						add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.i64);
-						break;
-					case AMQP_FIELD_KIND_U64:
-						add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.u64);
-						break;
-					case AMQP_FIELD_KIND_F32:
-						add_assoc_double_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.f32);
-						break;
-					case AMQP_FIELD_KIND_F64:
-						add_assoc_double_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.f64);
-						break;
-					case AMQP_FIELD_KIND_UTF8:
-						add_assoc_stringl_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.bytes.bytes, entry->value.value.bytes.len, 1);
-						break;
-					case AMQP_FIELD_KIND_BYTES:
-						add_assoc_stringl_ex(headers, entry->key.bytes, entry->key.len, entry->value.value.bytes.bytes, entry->value.value.bytes.len, 1);
-						break;
-
-					case AMQP_FIELD_KIND_ARRAY:
-					case AMQP_FIELD_KIND_TIMESTAMP:
-					case AMQP_FIELD_KIND_TABLE:
-					case AMQP_FIELD_KIND_VOID:
-					case AMQP_FIELD_KIND_DECIMAL:
-					break;
-				}
-			}
-
-			add_assoc_zval_ex(message, "headers", sizeof("headers"), headers);
-		}
-	
-		body_target = frame.payload.properties.body_size;
-		body_received = 0;
-		
-		buf = (char*) emalloc(FRAME_MAX);
-		if (!buf) {
-			zend_throw_exception(zend_exception_get_default(TSRMLS_C), "Out of memory (malloc)" ,0 TSRMLS_CC);   
-			return;
-		}
-	
-		/* resize buffer if necessary */
-		if (body_target > buf_max) {
-			int count_buf = body_target / FRAME_MAX +1;
-			int resize = count_buf * FRAME_MAX;
-			buf_max = resize;
-			pbuf = erealloc(buf, resize);
-			if (!pbuf) {
-				efree(buf);
-				zend_throw_exception(zend_exception_get_default(TSRMLS_C), "The memory is out (realloc)", 0 TSRMLS_CC);
-				return;
-			}
-			buf = pbuf; 
-		}
-	
-		pbuf = buf;
-		while (body_received < body_target) {
-			result = amqp_simple_wait_frame(connection->connection_resource->connection_state, &frame);
-			if (result < 0) {
-				break;
-			}
-
-			if (frame.frame_type != AMQP_FRAME_BODY) {
-				zend_throw_exception(amqp_queue_exception_class_entry, "The returned frame has no body.", 0 TSRMLS_CC);
-				return;
-			}
-
-			memcpy(pbuf, frame.payload.body_fragment.bytes, frame.payload.body_fragment.len);
-			body_received += frame.payload.body_fragment.len;
-			pbuf += frame.payload.body_fragment.len;
-
-		} /* end while	*/
-	
-		/* add message body to message */
-		add_assoc_stringl_ex(message, "message_body", sizeof("message_body"), buf, body_target, 1);
-			
-		/* add message to return value */
-		add_index_zval(return_value, i, message);
-			
-		efree(buf);
-	}
-	
-	/* If we have chosen to auto_ack, meaning that we do not need to acknowledge at a later date, acknowledge now */
-	if (flags & AMQP_AUTOACK && last_delivery_tag != -1) {
-			amqp_basic_ack(
-			connection->connection_resource->connection_state,
-			channel->channel_id,
-			last_delivery_tag,
-			1						/* Multiple flag - Set to 1 will acknowledge up to and including the above delivery tag */
-		);
 	}
 	
 	/* Set the QOS back to what the user requested at the beginning */
@@ -907,7 +851,8 @@ PHP_METHOD(amqp_queue_class, consume)
 
 	array_init(return_value);
 
-	while (1) { /* receive	frames:	 */
+	while (1) {
+		/* receive	frames:	 */
 		amqp_maybe_release_buffers(connection->connection_resource->connection_state);
 		
 		/* see if there are frames enqueued */

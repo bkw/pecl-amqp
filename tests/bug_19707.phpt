@@ -23,12 +23,12 @@ $q->bind($ex->getName(), 'routing.key');
 
 $ex->publish('message', 'routing.key');
 
-$msg = $q->get();
+$msg = $q->getMessages(0, 1);
 
 echo "message received from get: " . print_r($msg, true) . "\n";
 
-// $q->delete();
-// $ex->delete();
+$q->delete();
+$ex->delete();
 ?>
 --EXPECTF--
 message received from get: Array
