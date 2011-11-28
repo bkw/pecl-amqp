@@ -42,7 +42,7 @@ PHP_METHOD(amqp_queue_class, setArguments);
 PHP_METHOD(amqp_queue_class, declare);
 PHP_METHOD(amqp_queue_class, bind);
 
-PHP_METHOD(amqp_queue_class, getMessages);
+PHP_METHOD(amqp_queue_class, get);
 PHP_METHOD(amqp_queue_class, consume);
 PHP_METHOD(amqp_queue_class, ack);
 PHP_METHOD(amqp_queue_class, nack);

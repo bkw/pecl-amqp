@@ -10,12 +10,12 @@ $cnn->connect();
 $ch = new AMQPChannel($cnn);
 
 $ex = new AMQPExchange($ch);
-$ex->setName("exchange11");
+$ex->setName("exchange" . time());
 $ex->setType(AMQP_EX_TYPE_FANOUT);
 $ex->declare();
 
 $q = new AMQPQueue($ch);
-$q->setName('queue5');
+$q->setName('queue' . time());
 $q->setFlags(AMQP_DURABLE);
 $q->declare();
 
@@ -23,7 +23,7 @@ $q->bind($ex->getName(), 'routing.key');
 
 $ex->publish('message', 'routing.key');
 
-$msg = $q->getMessages(0, 1);
+$msg = $q->get();
 
 echo "message received from get: " . print_r($msg, true) . "\n";
 

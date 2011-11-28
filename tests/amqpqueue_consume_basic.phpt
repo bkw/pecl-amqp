@@ -1,5 +1,5 @@
 --TEST--
-AMQPQueue
+AMQPQueue::consume basic
 --SKIPIF--
 <?php if (!extension_loaded("amqp")) print "skip"; ?>
 --FILE--
@@ -24,29 +24,33 @@ $q->declare();
 $q->bind($ex->getName(), 'routing.*');
 
 // Publish a message to the exchange with a routing key
-$ex->publish('message', 'routing.1');
+$ex->publish('message1', 'routing.1');
 $ex->publish('message2', 'routing.2');
 $ex->publish('message3', 'routing.3');
 
+$count = 0;
+
+function consumeThings($message, $queue) {
+	global $count;
+	
+	echo $message['message_body'] . "-" . $message['routing_key'] . "\n";
+	
+	$count++;
+	
+	if ($count >= 2) {
+		global $ex;
+		global $q;
+		$ex->delete();
+		$q->delete();
+		return false;
+	}
+	return true;
+}
+
 // Read from the queue
-$msg = $q->consume();
-var_dump($msg);
+$q->consume("consumeThings");
 
-$msg = $q->consume();
-var_dump($msg);
-
-$ex->delete();
 ?>
 --EXPECT--
-array(2) {
-  ["Content-type"]=>
-  string(10) "text/plain"
-  ["msg"]=>
-  string(7) "message"
-}
-array(2) {
-  ["Content-type"]=>
-  string(10) "text/plain"
-  ["msg"]=>
-  string(8) "message2"
-}
+message1-routing.1
+message2-routing.2

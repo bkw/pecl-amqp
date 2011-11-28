@@ -1,5 +1,5 @@
 --TEST--
-AMQPQueue::getMessages empty body
+AMQPQueue::getMessages basic
 --SKIPIF--
 <?php if (!extension_loaded("amqp")) print "skip"; ?>
 --FILE--
@@ -11,7 +11,7 @@ $ch = new AMQPChannel($cnn);
 
 // Declare a new exchange
 $ex = new AMQPExchange($ch);
-$ex->setName('exchange' . time());
+$ex->setName('exchange1');
 $ex->setType(AMQP_EX_TYPE_FANOUT);
 $ex->declare();
 
@@ -22,19 +22,21 @@ $q->declare();
 
 // Bind it on the exchange to routing.key
 $q->bind($ex->getName(), 'routing.*');
-
 // Publish a message to the exchange with a routing key
-$ex->publish('', 'routing.1');
+$ex->publish('message', 'routing.1');
+$ex->publish('message2', 'routing.2');
+$ex->publish('message3', 'routing.3');
 
-// Read from the queue
-$msgs = $q->getMessages(0, 2, AMQP_AUTOACK);
 
-foreach ($msgs as $msg) {
-    echo "'" . $msg["message_body"] . "'\n";
+for ($i = 0; $i < 3; $i++) {
+	// Read from the queue
+	$msg = $q->get(AMQP_AUTOACK);
+    echo $msg["message_body"] . "\n";
 }
 
 $ex->delete();
-$q->delete();
 ?>
 --EXPECT--
-''
+message
+message2
+message3
