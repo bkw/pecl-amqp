@@ -42,6 +42,7 @@
 #include "amqp_channel.h"
 #include "amqp_queue.h"
 #include "amqp_exchange.h"
+#include "amqp_envelope.h"
 
 #include <unistd.h>
 
@@ -50,11 +51,13 @@ zend_class_entry *amqp_connection_class_entry;
 zend_class_entry *amqp_channel_class_entry;
 zend_class_entry *amqp_queue_class_entry;
 zend_class_entry *amqp_exchange_class_entry;
+zend_class_entry *amqp_envelope_class_entry;
+
 zend_class_entry *amqp_exception_class_entry,
 				 *amqp_connection_exception_class_entry,
 				 *amqp_channel_exception_class_entry,
-				 *amqp_exchange_exception_class_entry,
-				 *amqp_queue_exception_class_entry;
+				 *amqp_queue_exception_class_entry,
+				 *amqp_exchange_exception_class_entry;
 
 /* The last parameter of ZEND_BEGIN_ARG_INFO_EX indicates how many of the method flags are required. */
 /* The first parameter of ZEND_ARG_INFO indicates whether the variable is being passed by reference */
@@ -284,6 +287,66 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_publish, ZEND_SEND_BY_VAL, ZE
 ZEND_END_ARG_INFO()
 
 
+
+/* amqp_envelope_class ARG_INFO definition */
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class__construct, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getBody, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getRoutingKey, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getDeliveryTag, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getExchange, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_isRedelivery, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getContentType, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getContentEncoding, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getType, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getTimestamp, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getPriority, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getExpiration, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getUserId, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getAppId, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getMessageId, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getReplyTo, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getCorrelationId, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getHeaders, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getHeader, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+
 /* {{{ amqp_functions[]
 *
 *Every user visible function must have an entry in amqp_functions[].
@@ -379,6 +442,30 @@ zend_function_entry amqp_exchange_class_functions[] = {
 	PHP_ME(amqp_exchange_class, bind,			arginfo_amqp_exchange_class_bind,			ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_exchange_class, delete,			arginfo_amqp_exchange_class_delete,			ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_exchange_class, publish,		arginfo_amqp_exchange_class_publish,		ZEND_ACC_PUBLIC)
+
+	{NULL, NULL, NULL}	/* Must be the last line in amqp_functions[] */
+};
+
+zend_function_entry amqp_envelope_class_functions[] = {
+	PHP_ME(amqp_envelope_class, __construct, 		arginfo_amqp_envelope_class__construct,			ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_envelope_class, getBody, 			arginfo_amqp_envelope_class_getBody,			ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_envelope_class, getRoutingKey, 		arginfo_amqp_envelope_class_getRoutingKey,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_envelope_class, getDeliveryTag, 	arginfo_amqp_envelope_class_getDeliveryTag,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_envelope_class, getExchange, 		arginfo_amqp_envelope_class_getExchange,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_envelope_class, isRedelivery, 		arginfo_amqp_envelope_class_isRedelivery,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_envelope_class, getContentType, 	arginfo_amqp_envelope_class_getContentType,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_envelope_class, getContentEncoding, arginfo_amqp_envelope_class_getContentEncoding,	ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_envelope_class, getType, 			arginfo_amqp_envelope_class_getType,			ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_envelope_class, getTimestamp, 		arginfo_amqp_envelope_class_getTimestamp,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_envelope_class, getPriority, 		arginfo_amqp_envelope_class_getPriority,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_envelope_class, getExpiration, 		arginfo_amqp_envelope_class_getExpiration,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_envelope_class, getUserId, 			arginfo_amqp_envelope_class_getUserId,			ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_envelope_class, getAppId, 			arginfo_amqp_envelope_class_getAppId,			ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_envelope_class, getMessageId, 		arginfo_amqp_envelope_class_getMessageId,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_envelope_class, getReplyTo, 		arginfo_amqp_envelope_class_getReplyTo,			ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_envelope_class, getCorrelationId, 	arginfo_amqp_envelope_class_getCorrelationId,	ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_envelope_class, getHeaders, 		arginfo_amqp_envelope_class_getHeaders,			ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_envelope_class, getHeader, 			arginfo_amqp_envelope_class_getHeader,			ZEND_ACC_PUBLIC)
 
 	{NULL, NULL, NULL}	/* Must be the last line in amqp_functions[] */
 };
@@ -585,6 +672,11 @@ PHP_MINIT_FUNCTION(amqp)
 	ce.create_object = amqp_exchange_ctor;
 	amqp_exchange_class_entry = zend_register_internal_class(&ce TSRMLS_CC);
 
+	INIT_CLASS_ENTRY(ce, "AMQPEnvelope", amqp_envelope_class_functions);
+	ce.create_object = amqp_envelope_ctor;
+	amqp_envelope_class_entry = zend_register_internal_class(&ce TSRMLS_CC);
+	
+	/* Class Exceptions */
 	INIT_CLASS_ENTRY(ce, "AMQPException", NULL);
 	amqp_exception_class_entry = zend_register_internal_class_ex(&ce, (zend_class_entry*)zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
 

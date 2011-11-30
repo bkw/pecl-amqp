@@ -33,7 +33,7 @@ $count = 0;
 function consumeThings($message, $queue) {
 	global $count;
 	
-	echo $message['message_body'] . "-" . $message['routing_key'] . "\n";
+	echo $message->getBody() . "-" . $message->getRoutingKey() . "\n";
 	
 	$count++;
 	

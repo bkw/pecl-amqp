@@ -41,7 +41,6 @@
 
 #include "php_amqp.h"
 
-
 /* Used in ctor, so must be declated first */
 void amqp_queue_dtor(void *object TSRMLS_DC)
 {
@@ -87,14 +86,19 @@ zend_object_value amqp_queue_ctor(zend_class_entry *ce TSRMLS_DC)
 	return new_value;
 }
 
+
 /*
 Read a message that is pending on a channel. A call to basic.get or basic.consume must preceed this call.
 */
-int read_message_from_channel(amqp_connection_state_t connection, zval *message) {
+int read_message_from_channel(amqp_connection_state_t connection, zval *envelopeZval) {
 	size_t body_received = 0;
 	size_t body_target = 0;
 	char *message_body_buffer = NULL;
-	amqp_frame_t frame;
+	amqp_frame_t frame;	
+	
+	/* Build the envelope */
+	object_init_ex(envelopeZval, amqp_envelope_class_entry);
+	amqp_envelope_object *envelope = (amqp_envelope_object *)zend_object_store_get_object(envelopeZval TSRMLS_CC);
 	
 	/* The "standard" for this is to continuously loop over frames in the pipeline until an entire message is read */
 	while (1) {
@@ -121,18 +125,18 @@ int read_message_from_channel(amqp_connection_state_t connection, zval *message)
 				/* get message metadata */
 				amqp_basic_get_ok_t *delivery = (amqp_basic_get_ok_t *) frame.payload.method.decoded;
 				
-				add_assoc_stringl_ex(	message, 	"routing_key", 	12, delivery->routing_key.bytes, delivery->routing_key.len, 1);
-				add_assoc_long_ex(		message,	"delivery_tag", 13, delivery->delivery_tag);
-				add_assoc_bool_ex(		message,	"redelivered", 	12, delivery->redelivered);
-				add_assoc_stringl_ex(	message,	"exchange", 	9, 	delivery->exchange.bytes, delivery->exchange.len, 1);
+				AMQP_SET_STR_PROPERTY(envelope->routing_key,	delivery->routing_key.bytes, delivery->routing_key.len);
+				AMQP_SET_STR_PROPERTY(envelope->exchange,		delivery->exchange.bytes, delivery->exchange.len);
+				AMQP_SET_LONG_PROPERTY(envelope->delivery_tag,	delivery->delivery_tag);
+				AMQP_SET_BOOL_PROPERTY(envelope->is_redelivery,	delivery->redelivered);
 			} else if (frame.payload.method.id == AMQP_BASIC_DELIVER_METHOD) {
 				/* get message metadata */
 				amqp_basic_deliver_t *delivery = (amqp_basic_deliver_t *) frame.payload.method.decoded;
 				
-				add_assoc_stringl_ex(	message, 	"routing_key", 	12, delivery->routing_key.bytes, delivery->routing_key.len, 1);
-				add_assoc_long_ex(		message,	"delivery_tag", 13, delivery->delivery_tag);
-				add_assoc_bool_ex(		message,	"redelivered", 	12, delivery->redelivered);
-				add_assoc_stringl_ex(	message,	"exchange", 	9, 	delivery->exchange.bytes, delivery->exchange.len, 1);
+				AMQP_SET_STR_PROPERTY(envelope->routing_key,	delivery->routing_key.bytes, delivery->routing_key.len);
+				AMQP_SET_STR_PROPERTY(envelope->exchange,		delivery->exchange.bytes, delivery->exchange.len);
+				AMQP_SET_LONG_PROPERTY(envelope->delivery_tag,	delivery->delivery_tag);
+				AMQP_SET_BOOL_PROPERTY(envelope->is_redelivery,	delivery->redelivered);
 			}
 			
 			if (frame.payload.method.id == AMQP_BASIC_GET_EMPTY_METHOD) {
@@ -150,117 +154,100 @@ int read_message_from_channel(amqp_connection_state_t connection, zval *message)
 			memset(message_body_buffer, 0, body_target);
 			
 			amqp_basic_properties_t * p = (amqp_basic_properties_t *) frame.payload.properties.decoded;
-
+			
 			if (p->_flags & AMQP_BASIC_CONTENT_TYPE_FLAG) {
-				add_assoc_stringl_ex(message, "Content-type", sizeof("Content-type"),
-					p->content_type.bytes,
-					p->content_type.len, 1);
-				}
-
+				AMQP_SET_STR_PROPERTY(envelope->content_type, p->content_type.bytes, p->content_type.len);
+			}
+			
 			if (p->_flags & AMQP_BASIC_CONTENT_ENCODING_FLAG) {
-				add_assoc_stringl_ex(message, "Content-encoding", sizeof("Content-encoding"),
-					p->content_encoding.bytes,
-					p->content_encoding.len, 1);
+				AMQP_SET_STR_PROPERTY(envelope->content_encoding, p->content_encoding.bytes, p->content_encoding.len);
 			}
 
 			if (p->_flags & AMQP_BASIC_TYPE_FLAG) {
-				add_assoc_stringl_ex(message, "type", sizeof("type"),
-					p->type.bytes,
-					p->type.len, 1);
+				AMQP_SET_STR_PROPERTY(envelope->type, p->type.bytes, p->type.len);
 			}
 
 			if (p->_flags & AMQP_BASIC_TIMESTAMP_FLAG) {
-				add_assoc_long(message, "timestamp", p->timestamp);
+				AMQP_SET_LONG_PROPERTY(envelope->timestamp, p->timestamp);
 			}
 
 			if (p->_flags & AMQP_BASIC_PRIORITY_FLAG) {
-				add_assoc_long(message, "priority", p->priority);
+				AMQP_SET_LONG_PROPERTY(envelope->priority, p->priority);
 			}
 
 			if (p->_flags & AMQP_BASIC_EXPIRATION_FLAG) {
-				add_assoc_stringl_ex(message, "expiration", sizeof("expiration"),
-					p->expiration.bytes,
-					p->expiration.len, 1);
+				AMQP_SET_STR_PROPERTY(envelope->expiration, p->expiration.bytes, p->expiration.len);
 			}
 
 			if (p->_flags & AMQP_BASIC_USER_ID_FLAG) {
-				add_assoc_stringl_ex(message, "user_id", sizeof("user_id"),
-					p->user_id.bytes,
-					p->user_id.len, 1);
+				AMQP_SET_STR_PROPERTY(envelope->user_id, p->user_id.bytes, p->user_id.len);
 			}
 
 			if (p->_flags & AMQP_BASIC_APP_ID_FLAG) {
-				add_assoc_stringl_ex(message, "app_id", sizeof("app_id"),
-					p->app_id.bytes,
-					p->app_id.len, 1 );
+				AMQP_SET_STR_PROPERTY(envelope->app_id, p->app_id.bytes, p->app_id.len);
 			}
 
 			if (p->_flags & AMQP_BASIC_MESSAGE_ID_FLAG) {
-				add_assoc_stringl_ex(message, "message_id", sizeof("message_id"),
-					p->message_id.bytes,
-					p->message_id.len, 1);
+				AMQP_SET_STR_PROPERTY(envelope->message_id, p->message_id.bytes, p->message_id.len);
 			}
 
 			if (p->_flags & AMQP_BASIC_REPLY_TO_FLAG) {
-				add_assoc_stringl_ex(message, "Reply-to", sizeof("Reply-to"),
-					p->reply_to.bytes,
-					p->reply_to.len, 1);
+				AMQP_SET_STR_PROPERTY(envelope->reply_to, p->reply_to.bytes, p->reply_to.len);
 			}
 
 			if (p->_flags & AMQP_BASIC_CORRELATION_ID_FLAG) {
-				add_assoc_stringl_ex(message, "correlation_id", sizeof("correlation_id"),
-					p->correlation_id.bytes,
-					p->correlation_id.len, 1);
+				AMQP_SET_STR_PROPERTY(envelope->correlation_id, p->correlation_id.bytes, p->correlation_id.len);
 			}
 
 			if (p->_flags & AMQP_BASIC_HEADERS_FLAG) {
 				zval *headers;
-				int   i;
+				int i;
 
-				MAKE_STD_ZVAL(headers);
-				array_init(headers);
 				for (i = 0; i < p->headers.num_entries; i++) {
+					/* Build hte zval and make it null. If it is not null at the end, we can add it */
+					zval *value;
+					MAKE_STD_ZVAL(value);
+					ZVAL_NULL(value);
+					
 					amqp_table_entry_t *entry = &(p->headers.entries[i]);
-
+					
 					switch (entry->value.kind) {
 						case AMQP_FIELD_KIND_BOOLEAN:
-							add_assoc_bool_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.boolean);
+							ZVAL_BOOL(value, entry->value.value.boolean);
 							break;
 						case AMQP_FIELD_KIND_I8:
-							add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.i8);
+							ZVAL_LONG(value, entry->value.value.i8);
 							break;
 						case AMQP_FIELD_KIND_U8:
-							add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.u8);
+							ZVAL_LONG(value, entry->value.value.u8);
 							break;
 						case AMQP_FIELD_KIND_I16:
-							add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.i16);
+							ZVAL_LONG(value, entry->value.value.i16);
 							break;
 						case AMQP_FIELD_KIND_U16:
-							add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.u16);
+							ZVAL_LONG(value, entry->value.value.u16);
 							break;
 						case AMQP_FIELD_KIND_I32:
-							add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.i32);
+							ZVAL_LONG(value, entry->value.value.i32);
 							break;
 						case AMQP_FIELD_KIND_U32:
-							add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.u32);
+							ZVAL_LONG(value, entry->value.value.u32);
 							break;
 						case AMQP_FIELD_KIND_I64:
-							add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.i64);
+							ZVAL_LONG(value, entry->value.value.i64);
 							break;
 						case AMQP_FIELD_KIND_U64:
-							add_assoc_long_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.u64);
+							ZVAL_LONG(value, entry->value.value.i64);
 							break;
 						case AMQP_FIELD_KIND_F32:
-							add_assoc_double_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.f32);
+							ZVAL_DOUBLE(value, entry->value.value.f32);
 							break;
 						case AMQP_FIELD_KIND_F64:
-							add_assoc_double_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.f64);
+							ZVAL_DOUBLE(value, entry->value.value.f64);
 							break;
 						case AMQP_FIELD_KIND_UTF8:
-							add_assoc_stringl_ex(headers, entry->key.bytes, entry->key.len + 1, entry->value.value.bytes.bytes, entry->value.value.bytes.len, 1);
-							break;
 						case AMQP_FIELD_KIND_BYTES:
-							add_assoc_stringl_ex(headers, entry->key.bytes, entry->key.len, entry->value.value.bytes.bytes, entry->value.value.bytes.len, 1);
+							ZVAL_STRINGL(value, entry->value.value.bytes.bytes, entry->value.value.bytes.len, 1);
 							break;
 
 						case AMQP_FIELD_KIND_ARRAY:
@@ -270,9 +257,14 @@ int read_message_from_channel(amqp_connection_state_t connection, zval *message)
 						case AMQP_FIELD_KIND_DECIMAL:
 						break;
 					}
+					
+					if (Z_TYPE_P(value) != IS_NULL) {
+						char *key = estrndup(entry->key.bytes, entry->key.len);
+						add_assoc_zval(envelope->headers, key, value);
+						Z_ADDREF_P(value);
+						efree(key);
+					}
 				}
-
-				add_assoc_zval_ex(message, "headers", sizeof("headers"), headers);
 			}
 			
 			/* Check if we are going to even get a body */
@@ -297,9 +289,9 @@ int read_message_from_channel(amqp_connection_state_t connection, zval *message)
 	}
 	
 	/* Put the final touches into the zval */
-	add_assoc_stringl_ex(message, "message_body", sizeof("message_body"), message_body_buffer, body_target, 1);
+	envelope->body = estrndup(message_body_buffer, body_target);
 	
-	/* Free memory allocation */
+	/* Clean up message buffer */
 	efree(message_body_buffer);
 	
 	return AMQP_READ_SUCCESS;
@@ -470,8 +462,6 @@ PHP_METHOD(amqp_queue_class, getArgument)
 	zval_copy_ctor(return_value);
 	
 	Z_ADDREF_P(return_value);
-	
-	RETURN_TRUE;
 }
 /* }}} */
 
@@ -493,8 +483,6 @@ PHP_METHOD(amqp_queue_class, getArguments)
 
 	/* Increment the ref count */
 	Z_ADDREF_P(queue->arguments);
-
-	RETURN_TRUE;
 }
 /* }}} */
 
@@ -762,9 +750,6 @@ PHP_METHOD(amqp_queue_class, get)
 		&s
 	);
 	
-	/* We need to make an array out of the return value */
-	array_init(return_value);
-	
 	/* Read the message off of the channel */
 	int read = read_message_from_channel(connection->connection_resource->connection_state, return_value);
 	
@@ -800,6 +785,7 @@ PHP_METHOD(amqp_queue_class, consume)
 	zend_fcall_info_cache fci_cache;
 	zval *retval_ptr = NULL;
 	int function_call_succeeded = 1;
+	int read;
 
 	char str[256];
 	char **pstr = (char **)&str;
@@ -854,7 +840,7 @@ PHP_METHOD(amqp_queue_class, consume)
 		array_init(message);
 
 		/* Read the message */
-		int read = read_message_from_channel(connection->connection_resource->connection_state, message);
+		read = read_message_from_channel(connection->connection_resource->connection_state, message);
 
 		/* Make the callback */
 		if (read == AMQP_READ_SUCCESS) {
@@ -943,7 +929,6 @@ PHP_METHOD(amqp_queue_class, ack)
 	RETURN_TRUE;
 }
 /* }}} */
-
 
 
 

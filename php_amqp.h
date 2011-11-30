@@ -156,6 +156,8 @@ extern zend_class_entry *amqp_connection_class_entry;
 extern zend_class_entry *amqp_channel_class_entry;
 extern zend_class_entry *amqp_queue_class_entry;
 extern zend_class_entry *amqp_exchange_class_entry;
+extern zend_class_entry *amqp_envelope_class_entry;
+
 extern zend_class_entry *amqp_exception_class_entry,
 	*amqp_connection_exception_class_entry,
 	*amqp_channel_exception_class_entry,
@@ -190,6 +192,8 @@ extern zend_class_entry *amqp_exception_class_entry,
 #define IS_AUTODELETE(bitmask)	(AMQP_AUTODELETE & (bitmask)) ? 1 : 0;
 #define IS_NOWAIT(bitmask)		(AMQP_NOWAIT & (bitmask)) ? 1 : 0;
 
+
+
 #define AMQP_SET_NAME(object, str) \
 	(object)->name_len = strlen(str) >= sizeof((object)->name) ? sizeof((object)->name) - 1 : strlen(str); \
 	strncpy((object)->name, name, (object)->name_len); \
@@ -199,6 +203,16 @@ extern zend_class_entry *amqp_exception_class_entry,
 	(object)->type_len = strlen(str) >= sizeof((object)->type) ? sizeof((object)->type) - 1 : strlen(str); \
 	strncpy((object)->type, type, (object)->type_len); \
 	(object)->type[(object)->type_len] = '\0';
+
+#define AMQP_SET_LONG_PROPERTY(object, value) \
+	(object) = (value);
+
+#define AMQP_SET_BOOL_PROPERTY(object, value) \
+	(object) = (value) == 0 ? 0 : 1;
+
+#define AMQP_SET_STR_PROPERTY(object, str, len) \
+	strncpy((object), (str), (len) >= sizeof(object) ? sizeof(object) - 1 : (len)); \
+	(object)[(len) >= sizeof(object) ? sizeof(object) - 1 : (len)] = '\0';
 
 #define AMQP_EFREE_ARGUMENTS(object) \
 	if ((object)->entries) { \
@@ -298,6 +312,28 @@ typedef struct _amqp_exchange_object {
 	int durable; /* end @TODO */
 	zval *arguments;
 } amqp_exchange_object;
+
+typedef struct _amqp_envelope_object {
+	zend_object zo;
+	char *body;
+	char routing_key[255];
+	uint delivery_tag;
+	int delivery_mode;
+	char exchange[255];
+	int is_redelivery;
+	char content_type[255];
+	char content_encoding[255];
+	char type[255];
+	long timestamp;
+	int priority;
+	char expiration[255];
+	char user_id[255];
+	char app_id[255];
+	char message_id[255];
+	char reply_to[255];
+	char correlation_id[255];
+	zval *headers;
+} amqp_envelope_object;
 
 #ifdef ZTS
 #define AMQP_G(v) TSRMG(amqp_globals_id, zend_amqp_globals *, v)

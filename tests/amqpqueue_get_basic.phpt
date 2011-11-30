@@ -1,5 +1,5 @@
 --TEST--
-AMQPQueue::getMessages basic
+AMQPQueue::get basic
 --SKIPIF--
 <?php if (!extension_loaded("amqp")) print "skip"; ?>
 --FILE--
@@ -31,7 +31,7 @@ $ex->publish('message3', 'routing.3');
 for ($i = 0; $i < 3; $i++) {
 	// Read from the queue
 	$msg = $q->get(AMQP_AUTOACK);
-    echo $msg["message_body"] . "\n";
+    echo $msg->getBody() . "\n";
 }
 
 $ex->delete();

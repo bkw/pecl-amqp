@@ -1,5 +1,5 @@
 --TEST--
-AMQPQueue::get empty body
+AMQPQueue::get headers
 --SKIPIF--
 <?php if (!extension_loaded("amqp")) print "skip"; ?>
 --FILE--
@@ -24,21 +24,33 @@ $q->declare();
 $q->bind($ex->getName(), 'routing.*');
 
 // Publish a message to the exchange with a routing key
-$ex->publish('', 'routing.1');
+$ex->publish('body', 'routing.1', AMQP_NOPARAM, array("headers" => array(
+	"first" => "one",
+	"second" => 2
+)));
 
 // Read from the queue
 $msg = $q->get(AMQP_AUTOACK);
-echo "'" . $msg->getBody() . "'\n";
 
-$msg = $q->get(AMQP_AUTOACK);
-
-if ($msg === FALSE) {
-	echo "No more messages\n";
-}
+echo $msg->getBody() . "\n";
+var_dump($msg->getHeaders());
+echo $msg->getContentType() . "\n";
+echo $msg->getHeader("first") . "\n";
+echo $msg->getHeader("second") . "\n";
 
 $ex->delete();
 $q->delete();
 ?>
 --EXPECT--
-''
-No more messages
+body
+array(2) {
+  ["first"]=>
+  string(3) "one"
+  ["second"]=>
+  int(2)
+}
+text/plain
+one
+2
+
+
