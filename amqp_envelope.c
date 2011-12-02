@@ -54,65 +54,78 @@ HashTable *amqp_envelope_object_get_debug_info(zval *object, int *is_temp TSRMLS
 	ZEND_INIT_SYMTABLE_EX(retval, 18 + 1, 0);
 	
 	/* Start adding values */
-	MAKE_STD_ZVAL(value);
-	
+	MAKE_STD_ZVAL(value);	
 	ZVAL_STRINGL(value, envelope->body, strlen(envelope->body), 1);
 	zend_hash_add(retval, "body", strlen("body") + 1, &value, sizeof(zval *), NULL);
 
-	ZVAL_STRINGL(value, envelope->routing_key, strlen(envelope->routing_key), 1);
+	MAKE_STD_ZVAL(value);
+	ZVAL_STRINGL(value, envelope->content_type, strlen(envelope->content_type), 1);
 	zend_hash_add(retval, "content_type", strlen("content_type") + 1, &value, sizeof(zval *), NULL);
 
+	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->routing_key, strlen(envelope->routing_key), 1);
 	zend_hash_add(retval, "routing_key", strlen("routing_key") + 1, &value, sizeof(zval *), NULL);
 	
+	MAKE_STD_ZVAL(value);
 	ZVAL_LONG(value, envelope->delivery_tag);
 	zend_hash_add(retval, "delivery_tag", strlen("delivery_tag") + 1, &value, sizeof(zval *), NULL);
 	
+	MAKE_STD_ZVAL(value);
 	ZVAL_LONG(value, envelope->delivery_mode);
 	zend_hash_add(retval, "delivery_mode", strlen("delivery_mode") + 1, &value, sizeof(zval *), NULL);
 	
+	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->exchange, strlen(envelope->exchange), 1);
 	zend_hash_add(retval, "exchange", strlen("exchange") + 1, &value, sizeof(zval *), NULL);
 	
+	MAKE_STD_ZVAL(value);
 	ZVAL_LONG(value, envelope->is_redelivery);
 	zend_hash_add(retval, "is_redelivery", strlen("is_redelivery") + 1, &value, sizeof(zval *), NULL);
-	
-	ZVAL_STRINGL(value, envelope->content_type, strlen(envelope->content_type), 1);
-	zend_hash_add(retval, "content_type", strlen("content_type") + 1, &value, sizeof(zval *), NULL);
-	
+		
+	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->content_encoding, strlen(envelope->content_encoding), 1);
 	zend_hash_add(retval, "content_encoding", strlen("content_encoding") + 1, &value, sizeof(zval *), NULL);
 	
+	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->type, strlen(envelope->type), 1);
 	zend_hash_add(retval, "type", strlen("type") + 1, &value, sizeof(zval *), NULL);
 	
+	MAKE_STD_ZVAL(value);
 	ZVAL_LONG(value, envelope->timestamp);
 	zend_hash_add(retval, "timestamp", strlen("timestamp") + 1, &value, sizeof(zval *), NULL);
 	
+	MAKE_STD_ZVAL(value);
 	ZVAL_LONG(value, envelope->priority);
 	zend_hash_add(retval, "priority", strlen("priority") + 1, &value, sizeof(zval *), NULL);
 	
+	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->expiration, strlen(envelope->expiration), 1);
 	zend_hash_add(retval, "expiration", strlen("expiration") + 1, &value, sizeof(zval *), NULL);
 	
+	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->user_id, strlen(envelope->user_id), 1);
 	zend_hash_add(retval, "user_id", strlen("user_id") + 1, &value, sizeof(zval *), NULL);
 	
+	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->app_id, strlen(envelope->app_id), 1);
 	zend_hash_add(retval, "app_id", strlen("app_id") + 1, &value, sizeof(zval *), NULL);
 	
+	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->message_id, strlen(envelope->message_id), 1);
 	zend_hash_add(retval, "message_id", strlen("message_id") + 1, &value, sizeof(zval *), NULL);
 	
+	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->reply_to, strlen(envelope->reply_to), 1);
 	zend_hash_add(retval, "reply_to", strlen("reply_to") + 1, &value, sizeof(zval *), NULL);
 	
+	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->correlation_id, strlen(envelope->correlation_id), 1);
 	zend_hash_add(retval, "correlation_id", strlen("correlation_id") + 1, &value, sizeof(zval *), NULL);
 	
+	MAKE_STD_ZVAL(value);
 	zend_hash_add(retval, "headers", strlen("headers") + 1, envelope->headers, sizeof(envelope->headers), NULL);
 	Z_ADDREF_P(envelope->headers);
-	
+
 	return retval;
 }
 #endif
