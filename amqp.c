@@ -59,6 +59,8 @@ zend_class_entry *amqp_exception_class_entry,
 				 *amqp_queue_exception_class_entry,
 				 *amqp_exchange_exception_class_entry;
 
+int le_amqp_connection_resource;
+
 /* The last parameter of ZEND_BEGIN_ARG_INFO_EX indicates how many of the method flags are required. */
 /* The first parameter of ZEND_ARG_INFO indicates whether the variable is being passed by reference */
 
