@@ -214,7 +214,6 @@ int read_message_from_channel(amqp_connection_state_t connection, zval *envelope
 		}
 
 		if (p->_flags & AMQP_BASIC_HEADERS_FLAG) {
-			zval *headers;
 			int i;
 
 			for (i = 0; i < p->headers.num_entries; i++) {
@@ -720,12 +719,7 @@ PHP_METHOD(amqp_queue_class, get)
 	amqp_channel_object *channel;
 	amqp_connection_object *connection;
 	
-	amqp_rpc_reply_t res;
 	long flags = INI_INT("amqp.auto_ack") ? AMQP_AUTOACK : AMQP_NOPARAM;
-	
-	char *pbuf;
-
-	int buf_max = FRAME_MAX;
 
 	/* Parse out the method parameters */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|l", &id, amqp_queue_class_entry, &flags) == FAILURE) {
@@ -763,7 +757,7 @@ PHP_METHOD(amqp_queue_class, get)
 	s.no_ack = (AMQP_AUTOACK & flags) ? 1 : 0;
 
 	/* Get the next message using basic.get */
-	int status = amqp_send_method(
+	amqp_send_method(
 		connection->connection_resource->connection_state,
 		channel->channel_id,
 		AMQP_BASIC_GET_METHOD,
@@ -803,30 +797,14 @@ PHP_METHOD(amqp_queue_class, consume)
 
 	zend_fcall_info fci;
 	zend_fcall_info_cache fci_cache;
-	zval *retval_ptr = NULL;
 	int function_call_succeeded = 1;
 	int read;
 
-	char str[256];
-	char **pstr = (char **)&str;
 	long flags = INI_INT("amqp.auto_ack") ? AMQP_AUTOACK : AMQP_NOPARAM;
-
-	amqp_basic_get_ok_t *get_ok;
-	amqp_channel_close_t *err;
-
-	int result;
-
-	amqp_frame_t frame;
-
-	size_t len = 0;
-	char *tmp = NULL;
-	char *old_tmp = NULL;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Of|l", &id, amqp_queue_class_entry, &fci, &fci_cache, &flags) == FAILURE) {
 		return;
 	}
-	/* Initialize the return value pointer */
-	fci.retval_ptr_ptr = &retval_ptr;
 
 	/* Pull the queue out */
 	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
@@ -857,13 +835,16 @@ PHP_METHOD(amqp_queue_class, consume)
 		/* Initialize the message */
 		zval *message;
 		MAKE_STD_ZVAL(message);
-		array_init(message);
-
+		
 		/* Read the message */
 		read = read_message_from_channel(connection->connection_resource->connection_state, message);
 
 		/* Make the callback */
 		if (read == AMQP_READ_SUCCESS) {
+			/* Initialize the return value pointer */
+			zval *retval_ptr = NULL;
+			fci.retval_ptr_ptr = &retval_ptr;
+			
 			/* Build the parameter array */
 			zval *params;
 			MAKE_STD_ZVAL(params);
@@ -877,7 +858,7 @@ PHP_METHOD(amqp_queue_class, consume)
 			
 			/* Convert everything to be callable */
 			zend_fcall_info_args(&fci, params TSRMLS_CC);
- 
+			
 			/* Call the function, and track the return value */
  			if (zend_call_function(&fci, &fci_cache TSRMLS_CC) == SUCCESS && fci.retval_ptr_ptr && *fci.retval_ptr_ptr) {
  				COPY_PZVAL_TO_ZVAL(*return_value, *fci.retval_ptr_ptr);
@@ -890,6 +871,7 @@ PHP_METHOD(amqp_queue_class, consume)
 			
 			/* Clean up our mess */
 			zend_fcall_info_args_clear(&fci, 1);
+			zval_ptr_dtor(&params);
 		}
 
 	} while (read != AMQP_READ_ERROR && function_call_succeeded == 1);

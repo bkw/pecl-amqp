@@ -49,7 +49,6 @@ HashTable *amqp_envelope_object_get_debug_info(zval *object, int *is_temp TSRMLS
 	/* Get the envelope object from which to read */
 	amqp_envelope_object *envelope = (amqp_envelope_object *)zend_object_store_get_object(object TSRMLS_CC);
 	
-	ALLOC_HASHTABLE(retval);
 	/* Keep the # 18 matching the number of entries in this table*/
 	ZEND_INIT_SYMTABLE_EX(retval, 18 + 1, 0);
 	
@@ -122,10 +121,8 @@ HashTable *amqp_envelope_object_get_debug_info(zval *object, int *is_temp TSRMLS
 	ZVAL_STRINGL(value, envelope->correlation_id, strlen(envelope->correlation_id), 1);
 	zend_hash_add(retval, "correlation_id", strlen("correlation_id") + 1, &value, sizeof(zval *), NULL);
 	
-	MAKE_STD_ZVAL(value);
 	zend_hash_add(retval, "headers", strlen("headers") + 1, envelope->headers, sizeof(envelope->headers), NULL);
-	Z_ADDREF_P(envelope->headers);
-
+	
 	return retval;
 }
 #endif
@@ -137,6 +134,8 @@ void amqp_envelope_dtor(void *object TSRMLS_DC)
 	if (envelope->headers) {
 		zval_ptr_dtor(&envelope->headers);
 	}
+	
+	efree(envelope->body);
 	
 	zend_object_std_dtor(&envelope->zo TSRMLS_CC);
 	
