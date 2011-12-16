@@ -135,6 +135,7 @@ extern zend_module_entry amqp_module_entry;
 #define AMQP_IMMEDIATE		2048
 #define AMQP_MULTIPLE		4096
 #define AMQP_NOWAIT			8192
+#define AMQP_REQUEUE		16384
 
 #define AMQP_EX_TYPE_DIRECT		"direct"
 #define AMQP_EX_TYPE_FANOUT		"fanout"

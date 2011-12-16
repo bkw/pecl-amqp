@@ -948,6 +948,8 @@ PHP_METHOD(amqp_queue_class, consume)
 			zend_fcall_info_args_clear(&fci, 1);
 			zval_ptr_dtor(&params);
 		}
+		
+		zval_ptr_dtor(&message);
 
 	} while (read != AMQP_READ_ERROR && function_call_succeeded == 1);
 }
@@ -1022,7 +1024,7 @@ PHP_METHOD(amqp_queue_class, nack)
 	long deliveryTag = 0;
 	long flags = AMQP_NOPARAM;
 
-	amqp_basic_ack_t s;
+	amqp_basic_nack_t s;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Ol|l", &id, amqp_queue_class_entry, &deliveryTag, &flags ) == FAILURE) {
 		return;
@@ -1043,6 +1045,7 @@ PHP_METHOD(amqp_queue_class, nack)
 	
 	s.delivery_tag = deliveryTag;
 	s.multiple = (AMQP_MULTIPLE & flags) ? 1 : 0;
+	s.requeue = (AMQP_REQUEUE & flags) ? 1 : 0;
 
 	int res = amqp_send_method(
 		connection->connection_resource->connection_state,
