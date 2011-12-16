@@ -858,6 +858,7 @@ PHP_METHOD(amqp_queue_class, consume)
 			
 			/* Add a pointer to the queue: */
 			add_index_zval(params, 1, id);
+			Z_ADDREF_P(id);
 			
 			/* Convert everything to be callable */
 			zend_fcall_info_args(&fci, params TSRMLS_CC);
