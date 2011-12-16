@@ -39,7 +39,7 @@ object(AMQPEnvelope)#5 (18) {
   int(1)
   ["delivery_mode"]=>
   int(0)
-  ["exchange"]=>
+  ["exchange_name"]=>
   string(9) "exchange1"
   ["is_redelivery"]=>
   int(0)
