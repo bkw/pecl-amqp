@@ -178,7 +178,12 @@ int read_message_from_channel(amqp_connection_state_t connection, zval *envelope
 			amqp_channel_close_t *err = (amqp_channel_close_t *)frame.payload.method.decoded;
 			char str[256];
 			char **pstr = (char **)&str;
-			spprintf(pstr, 0, "Server error: %d", (int)err->reply_code);
+			if (err) {
+				spprintf(pstr, 0, "Server error: %d", (int)err->reply_code);
+			} else {
+				spprintf(pstr, 0, "Unknown server error occurred.");
+			}
+			
 			zend_throw_exception(amqp_queue_exception_class_entry, *pstr, 0 TSRMLS_CC);
 			return AMQP_READ_ERROR;
 		}
@@ -247,6 +252,10 @@ int read_message_from_channel(amqp_connection_state_t connection, zval *envelope
 			AMQP_SET_LONG_PROPERTY(envelope->timestamp, p->timestamp);
 		}
 
+		if (p->_flags & AMQP_BASIC_DELIVERY_MODE_FLAG) {
+			AMQP_SET_LONG_PROPERTY(envelope->delivery_mode, p->delivery_mode);
+		}
+		
 		if (p->_flags & AMQP_BASIC_PRIORITY_FLAG) {
 			AMQP_SET_LONG_PROPERTY(envelope->priority, p->priority);
 		}

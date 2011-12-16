@@ -182,6 +182,11 @@ void php_amqp_disconnect(amqp_connection_object *connection)
 	/* Pull the connection resource out for easy access */
 	amqp_connection_resource *resource = connection->connection_resource;
 	
+	/* If it's persistent connection do not close this socket connection */ 
+	if (connection->is_connected == '\1' && connection->connection_resource->is_persistent) {   
+		return;
+	}
+	
 	/*
 	If we are trying to close the connection and the connection already closed, it will throw
 	SIGPIPE, which is fine, so ignore all SIGPIPES
@@ -529,8 +534,11 @@ PHP_METHOD(amqp_connection_class, pconnect)
 		/* Stash the connection resource in the connection */
 		connection->connection_resource = le->ptr;
 		
+		/* Set connection status to connected */
+		connection->is_connected = '\1';
+		
 		efree(key);
-		return;
+		RETURN_TRUE;
 	}
 
 	/* No resource found: Instantiate the underlying connection */
@@ -586,7 +594,7 @@ PHP_METHOD(amqp_connection_class, reconnect)
 	/* Get the connection object out of the store */
 	connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
 
-	if (connection->is_connected) {
+	if (connection->is_connected == '\1') {
 		php_amqp_disconnect(connection);
 	}
 	
