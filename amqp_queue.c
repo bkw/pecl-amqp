@@ -131,7 +131,7 @@ int read_message_from_channel(amqp_connection_state_t connection, zval *envelope
 			amqp_basic_get_ok_t *delivery = (amqp_basic_get_ok_t *) frame.payload.method.decoded;
 			
 			AMQP_SET_STR_PROPERTY(envelope->routing_key,	delivery->routing_key.bytes, delivery->routing_key.len);
-			AMQP_SET_STR_PROPERTY(envelope->exchange,		delivery->exchange.bytes, delivery->exchange.len);
+			AMQP_SET_STR_PROPERTY(envelope->exchange_name,	delivery->exchange.bytes, delivery->exchange.len);
 			AMQP_SET_LONG_PROPERTY(envelope->delivery_tag,	delivery->delivery_tag);
 			AMQP_SET_BOOL_PROPERTY(envelope->is_redelivery,	delivery->redelivered);
 		} else if (frame.payload.method.id == AMQP_BASIC_DELIVER_METHOD) {
@@ -139,7 +139,7 @@ int read_message_from_channel(amqp_connection_state_t connection, zval *envelope
 			amqp_basic_deliver_t *delivery = (amqp_basic_deliver_t *) frame.payload.method.decoded;
 			
 			AMQP_SET_STR_PROPERTY(envelope->routing_key,	delivery->routing_key.bytes, delivery->routing_key.len);
-			AMQP_SET_STR_PROPERTY(envelope->exchange,		delivery->exchange.bytes, delivery->exchange.len);
+			AMQP_SET_STR_PROPERTY(envelope->exchange_name,	delivery->exchange.bytes, delivery->exchange.len);
 			AMQP_SET_LONG_PROPERTY(envelope->delivery_tag,	delivery->delivery_tag);
 			AMQP_SET_BOOL_PROPERTY(envelope->is_redelivery,	delivery->redelivered);
 		} else if (frame.payload.method.id == AMQP_BASIC_GET_EMPTY_METHOD) {
@@ -274,8 +274,9 @@ int read_message_from_channel(amqp_connection_state_t connection, zval *envelope
 				if (Z_TYPE_P(value) != IS_NULL) {
 					char *key = estrndup(entry->key.bytes, entry->key.len);
 					add_assoc_zval(envelope->headers, key, value);
-					Z_ADDREF_P(value);
 					efree(key);
+				} else {
+					zval_dtor(value);
 				}
 			}
 		}
@@ -311,7 +312,9 @@ int read_message_from_channel(amqp_connection_state_t connection, zval *envelope
 	envelope->body = estrndup(message_body_buffer, body_target);
 	
 	/* Clean up message buffer */
-	efree(message_body_buffer);
+	if (message_body_buffer) {
+		efree(message_body_buffer);
+	}
 	
 	return AMQP_READ_SUCCESS;
 }

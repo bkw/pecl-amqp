@@ -10,7 +10,7 @@ $cnn->connect();
 $ch = new AMQPChannel($cnn);
 
 $ex = new AMQPExchange($ch);
-$ex->setName("exchange" . time());
+$ex->setName("exchange_testing_19707");
 $ex->setType(AMQP_EX_TYPE_FANOUT);
 $ex->declare();
 
@@ -25,18 +25,31 @@ $ex->publish('message', 'routing.key');
 
 $msg = $q->get();
 
-echo "message received from get: " . print_r($msg, true) . "\n";
+echo "message received from get:";
+var_dump($msg);
 
 $q->delete();
 $ex->delete();
 ?>
 --EXPECTF--
-message received from get: Array
+message received from get: AMQPEnvelope Object
 (
+    [body] => message
+    [content_type] => text/plain
     [routing_key] => routing.key
-    [exchange] => exchange11
     [delivery_tag] => 1
-    [Content-type] => text/plain
-    [count] => 0
-    [msg] => message
+    [delivery_mode] => 0
+    [exchange_name] => exchange_testing_19707
+    [is_redelivery] => 0
+    [content_encoding] => 
+    [type] => 
+    [timestamp] => 0
+    [priority] => 0
+    [expiration] => 
+    [user_id] => 
+    [app_id] => 
+    [message_id] => 
+    [reply_to] => 
+    [correlation_id] => 
+    [headers] => 
 )

@@ -319,7 +319,7 @@ typedef struct _amqp_envelope_object {
 	char routing_key[255];
 	uint delivery_tag;
 	int delivery_mode;
-	char exchange[255];
+	char exchange_name[255];
 	int is_redelivery;
 	char content_type[255];
 	char content_encoding[255];
@@ -333,6 +333,7 @@ typedef struct _amqp_envelope_object {
 	char reply_to[255];
 	char correlation_id[255];
 	zval *headers;
+	HashTable *debug_info;
 } amqp_envelope_object;
 
 #ifdef ZTS

@@ -303,7 +303,10 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getDeliveryTag, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getExchange, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getDeliveryMode, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_getExchangeName, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_envelope_class_isRedelivery, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
@@ -453,7 +456,8 @@ zend_function_entry amqp_envelope_class_functions[] = {
 	PHP_ME(amqp_envelope_class, getBody, 			arginfo_amqp_envelope_class_getBody,			ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_envelope_class, getRoutingKey, 		arginfo_amqp_envelope_class_getRoutingKey,		ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_envelope_class, getDeliveryTag, 	arginfo_amqp_envelope_class_getDeliveryTag,		ZEND_ACC_PUBLIC)
-	PHP_ME(amqp_envelope_class, getExchange, 		arginfo_amqp_envelope_class_getExchange,		ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_envelope_class, getDeliveryMode, 	arginfo_amqp_envelope_class_getDeliveryMode,	ZEND_ACC_PUBLIC)
+	PHP_ME(amqp_envelope_class, getExchangeName, 	arginfo_amqp_envelope_class_getExchangeName,	ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_envelope_class, isRedelivery, 		arginfo_amqp_envelope_class_isRedelivery,		ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_envelope_class, getContentType, 	arginfo_amqp_envelope_class_getContentType,		ZEND_ACC_PUBLIC)
 	PHP_ME(amqp_envelope_class, getContentEncoding, arginfo_amqp_envelope_class_getContentEncoding,	ZEND_ACC_PUBLIC)
