@@ -41,6 +41,47 @@
 
 #include "php_amqp.h"
 
+
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
+HashTable *amqp_exchange_object_get_debug_info(zval *object, int *is_temp TSRMLS_DC) {
+	zval *value;
+
+	/* Get the envelope object from which to read */
+	amqp_exchange_object *exchange = (amqp_exchange_object *)zend_object_store_get_object(object TSRMLS_CC);
+
+	if (exchange->debug_info) {
+		zend_hash_destroy(exchange->debug_info);
+		efree(exchange->debug_info);
+	}
+
+	/* Keep the first number matching the number of entries in this table*/
+	ALLOC_HASHTABLE(exchange->debug_info);
+	ZEND_INIT_SYMTABLE_EX(exchange->debug_info, 5 + 1, 0);
+
+	/* Start adding values */
+	MAKE_STD_ZVAL(value);
+	ZVAL_STRINGL(value, exchange->name, strlen(exchange->name), 1);
+	zend_hash_add(exchange->debug_info, "name", strlen("name") + 1, &value, sizeof(zval *), NULL);
+
+	MAKE_STD_ZVAL(value);
+	ZVAL_STRINGL(value, exchange->type, strlen(exchange->type), 1);
+	zend_hash_add(exchange->debug_info, "type", strlen("type") + 1, &value, sizeof(zval *), NULL);
+
+	MAKE_STD_ZVAL(value);
+	ZVAL_LONG(value, exchange->passive);
+	zend_hash_add(exchange->debug_info, "passive", strlen("passive") + 1, &value, sizeof(zval *), NULL);
+
+	MAKE_STD_ZVAL(value);
+	ZVAL_LONG(value, exchange->durable);
+	zend_hash_add(exchange->debug_info, "durable", strlen("durable") + 1, &value, sizeof(zval *), NULL);
+
+	zend_hash_add(exchange->debug_info, "arguments", strlen("arguments") + 1, &exchange->arguments, sizeof(&exchange->arguments), NULL);
+
+	/* Start adding values */
+	return exchange->debug_info;
+}
+#endif
+
 void amqp_exchange_dtor(void *object TSRMLS_DC)
 {
 	amqp_exchange_object *exchange = (amqp_exchange_object*)object;
@@ -52,6 +93,11 @@ void amqp_exchange_dtor(void *object TSRMLS_DC)
 
 	if (exchange->arguments) {
 		zval_ptr_dtor(&exchange->arguments);
+	}
+	
+	if (exchange->debug_info) {
+		zend_hash_destroy(exchange->debug_info);
+		efree(exchange->debug_info);
 	}
 
 	zend_object_std_dtor(&exchange->zo TSRMLS_CC);
@@ -72,8 +118,21 @@ zend_object_value amqp_exchange_ctor(zend_class_entry *ce TSRMLS_DC)
 
 	zend_object_std_init(&exchange->zo, ce TSRMLS_CC);
 
-	new_value.handle = zend_objects_store_put(exchange, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t)amqp_exchange_dtor, NULL TSRMLS_CC);
+	new_value.handle = zend_objects_store_put(
+		exchange,
+		(zend_objects_store_dtor_t)zend_objects_destroy_object,
+		(zend_objects_free_object_storage_t)amqp_exchange_dtor,
+		NULL TSRMLS_CC
+	);
+	
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
+	zend_object_handlers *handlers;
+	handlers = zend_get_std_object_handlers();
+	handlers->get_debug_info = amqp_exchange_object_get_debug_info;
+	new_value.handlers = handlers;
+#else
 	new_value.handlers = zend_get_std_object_handlers();
+#endif
 
 	return new_value;
 }
@@ -772,7 +831,6 @@ PHP_METHOD(amqp_exchange_class, bind)
 	int flags;
 
 	amqp_rpc_reply_t res;
-	amqp_rpc_reply_t result;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss|l", &id, amqp_exchange_class_entry, &src_name, &src_name_len, &keyname, &keyname_len, &flags) == FAILURE) {
 		return;

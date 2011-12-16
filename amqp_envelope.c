@@ -126,7 +126,7 @@ HashTable *amqp_envelope_object_get_debug_info(zval *object, int *is_temp TSRMLS
 	ZVAL_STRINGL(value, envelope->correlation_id, strlen(envelope->correlation_id), 1);
 	zend_hash_add(envelope->debug_info, "correlation_id", strlen("correlation_id") + 1, &value, sizeof(zval *), NULL);
 	
-	zend_hash_add(envelope->debug_info, "headers", strlen("headers") + 1, envelope->headers, sizeof(envelope->headers), NULL);
+	zend_hash_add(envelope->debug_info, "headers", strlen("headers") + 1, &envelope->headers, sizeof(&envelope->headers), NULL);
 	
 	return envelope->debug_info;
 }

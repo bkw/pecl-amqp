@@ -41,6 +41,55 @@
 
 #include "php_amqp.h"
 
+
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
+HashTable *amqp_queue_object_get_debug_info(zval *object, int *is_temp TSRMLS_DC) {
+	zval *value;
+	
+	/* Get the envelope object from which to read */
+	amqp_queue_object *queue = (amqp_queue_object *)zend_object_store_get_object(object TSRMLS_CC);
+	
+	if (queue->debug_info) {
+		zend_hash_destroy(queue->debug_info);
+		efree(queue->debug_info);
+	}
+	
+	/* Keep the # 18 matching the number of entries in this table*/
+	ALLOC_HASHTABLE(queue->debug_info);
+	ZEND_INIT_SYMTABLE_EX(queue->debug_info, 7 + 1, 0);
+	
+	/* Start adding values */
+	MAKE_STD_ZVAL(value);
+	ZVAL_STRINGL(value, queue->name, strlen(queue->name), 1);
+	zend_hash_add(queue->debug_info, "queue_name", strlen("queue_name") + 1, &value, sizeof(zval *), NULL);
+	
+	MAKE_STD_ZVAL(value);
+	ZVAL_STRINGL(value, queue->consumer_tag, strlen(queue->consumer_tag), 1);
+	zend_hash_add(queue->debug_info, "consumer_tag", strlen("consumer_tag") + 1, &value, sizeof(zval *), NULL);
+	
+	MAKE_STD_ZVAL(value);
+	ZVAL_BOOL(value, queue->passive);
+	zend_hash_add(queue->debug_info, "passive", strlen("passive") + 1, &value, sizeof(zval *), NULL);
+	
+	MAKE_STD_ZVAL(value);
+	ZVAL_BOOL(value, queue->durable);
+	zend_hash_add(queue->debug_info, "durable", strlen("durable") + 1, &value, sizeof(zval *), NULL);
+	
+	MAKE_STD_ZVAL(value);
+	ZVAL_BOOL(value, queue->exclusive);
+	zend_hash_add(queue->debug_info, "exclusive", strlen("exclusive") + 1, &value, sizeof(zval *), NULL);
+	
+	MAKE_STD_ZVAL(value);
+	ZVAL_BOOL(value, queue->auto_delete);
+	zend_hash_add(queue->debug_info, "auto_delete", strlen("auto_delete") + 1, &value, sizeof(zval *), NULL);
+	
+	zend_hash_add(queue->debug_info, "arguments", strlen("arguments") + 1, &queue->arguments, sizeof(&queue->arguments), NULL);
+
+	/* Start adding values */
+	return queue->debug_info;
+}
+#endif
+
 /* Used in ctor, so must be declated first */
 void amqp_queue_dtor(void *object TSRMLS_DC)
 {
@@ -54,6 +103,11 @@ void amqp_queue_dtor(void *object TSRMLS_DC)
 	/* Destroy the arguments storage */
 	if (queue->arguments) {
 		zval_ptr_dtor(&queue->arguments);
+	}
+	
+	if (queue->debug_info) {
+		zend_hash_destroy(queue->debug_info);
+		efree(queue->debug_info);
 	}
 
 	zend_object_std_dtor(&queue->zo TSRMLS_CC);
@@ -81,7 +135,15 @@ zend_object_value amqp_queue_ctor(zend_class_entry *ce TSRMLS_DC)
 		(zend_objects_free_object_storage_t)amqp_queue_dtor,
 		NULL TSRMLS_CC
 	);
+	
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
+	zend_object_handlers *handlers;
+	handlers = zend_get_std_object_handlers();
+	handlers->get_debug_info = amqp_queue_object_get_debug_info;
+	new_value.handlers = handlers;
+#else
 	new_value.handlers = zend_get_std_object_handlers();
+#endif
 
 	return new_value;
 }

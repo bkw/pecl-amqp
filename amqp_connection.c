@@ -41,6 +41,48 @@
 
 #include "php_amqp.h"
 
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
+HashTable *amqp_connection_object_get_debug_info(zval *object, int *is_temp TSRMLS_DC) {
+	zval *value;
+	
+	/* Get the envelope object from which to read */
+	amqp_connection_object *connection = (amqp_connection_object *)zend_object_store_get_object(object TSRMLS_CC);
+	
+	if (connection->debug_info) {
+		zend_hash_destroy(connection->debug_info);
+		efree(connection->debug_info);
+	}
+	
+	/* Keep the first number matching the number of entries in this table*/
+	ALLOC_HASHTABLE(connection->debug_info);
+	ZEND_INIT_SYMTABLE_EX(connection->debug_info, 5 + 1, 0);
+	
+	/* Start adding values */
+	MAKE_STD_ZVAL(value);
+	ZVAL_STRINGL(value, connection->login, strlen(connection->login), 1);
+	zend_hash_add(connection->debug_info, "login", strlen("login") + 1, &value, sizeof(zval *), NULL);
+
+	MAKE_STD_ZVAL(value);
+	ZVAL_STRINGL(value, connection->password, strlen(connection->password), 1);
+	zend_hash_add(connection->debug_info, "password", strlen("password") + 1, &value, sizeof(zval *), NULL);
+
+	MAKE_STD_ZVAL(value);
+	ZVAL_STRINGL(value, connection->host, strlen(connection->host), 1);
+	zend_hash_add(connection->debug_info, "host", strlen("host") + 1, &value, sizeof(zval *), NULL);
+	
+	MAKE_STD_ZVAL(value);
+	ZVAL_STRINGL(value, connection->vhost, strlen(connection->vhost), 1);
+	zend_hash_add(connection->debug_info, "vhost", strlen("vhost") + 1, &value, sizeof(zval *), NULL);
+	
+	MAKE_STD_ZVAL(value);
+	ZVAL_LONG(value, connection->port);
+	zend_hash_add(connection->debug_info, "port", strlen("port") + 1, &value, sizeof(zval *), NULL);
+
+	/* Start adding values */
+	return connection->debug_info;
+}
+#endif
+
 /**
  * 	php_amqp_connect
  *	handles connecting to amqp
@@ -271,7 +313,12 @@ void amqp_connection_dtor(void *object TSRMLS_DC)
 		}
 		efree(connection->connection_resource);
 	}
-
+	
+	if (connection->debug_info) {
+		zend_hash_destroy(connection->debug_info);
+		efree(connection->debug_info);
+	}
+	
 	zend_object_std_dtor(&connection->zo TSRMLS_CC);
 
 	efree(object);
@@ -286,8 +333,21 @@ zend_object_value amqp_connection_ctor(zend_class_entry *ce TSRMLS_DC)
 
 	zend_object_std_init(&connection->zo, ce TSRMLS_CC);
 
-	new_value.handle = zend_objects_store_put(connection, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t)amqp_connection_dtor, NULL TSRMLS_CC);
+	new_value.handle = zend_objects_store_put(
+		connection,
+		(zend_objects_store_dtor_t)zend_objects_destroy_object,
+		(zend_objects_free_object_storage_t)amqp_connection_dtor,
+		NULL TSRMLS_CC
+	);
+	
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
+	zend_object_handlers *handlers;
+	handlers = zend_get_std_object_handlers();
+	handlers->get_debug_info = amqp_connection_object_get_debug_info;
+	new_value.handlers = handlers;
+#else
 	new_value.handlers = zend_get_std_object_handlers();
+#endif
 
 	return new_value;
 }

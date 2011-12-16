@@ -259,6 +259,7 @@ typedef struct _amqp_channel_object {
 	char is_connected;
 	int prefetch_count;
 	int prefetch_size;
+	HashTable *debug_info;
 } amqp_channel_object;
 
 typedef struct _amqp_connection_resource {
@@ -282,6 +283,7 @@ typedef struct _amqp_connection_object {
 	int vhost_len;
 	int port;
 	amqp_connection_resource *connection_resource;
+	HashTable *debug_info;
 } amqp_connection_object;
 
 typedef struct _amqp_queue_object {
@@ -297,6 +299,7 @@ typedef struct _amqp_queue_object {
 	int exclusive;
 	int auto_delete; /* end @TODO */
 	zval *arguments;
+	HashTable *debug_info;
 } amqp_queue_object;
 
 
@@ -311,6 +314,7 @@ typedef struct _amqp_exchange_object {
 	int passive; /* @TODO: consider making these bit fields */
 	int durable; /* end @TODO */
 	zval *arguments;
+	HashTable *debug_info;
 } amqp_exchange_object;
 
 typedef struct _amqp_envelope_object {

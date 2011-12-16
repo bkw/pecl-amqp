@@ -40,7 +40,41 @@
 #include <unistd.h>
 
 #include "php_amqp.h"
+#include "amqp_connection.h"
 
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
+HashTable *amqp_channel_object_get_debug_info(zval *object, int *is_temp TSRMLS_DC) {
+	zval *value;
+	
+	/* Get the envelope object from which to read */
+	amqp_channel_object *channel = (amqp_channel_object *)zend_object_store_get_object(object TSRMLS_CC);
+	
+	if (channel->debug_info) {
+		zend_hash_destroy(channel->debug_info);
+		efree(channel->debug_info);
+	}
+	
+	/* Keep the first number matching the number of entries in this table*/
+	ALLOC_HASHTABLE(channel->debug_info);
+	ZEND_INIT_SYMTABLE_EX(channel->debug_info, 3 + 1, 0);
+	
+	/* Start adding values */
+	MAKE_STD_ZVAL(value);
+	ZVAL_LONG(value, channel->channel_id);
+	zend_hash_add(channel->debug_info, "channel_id", strlen("channel_id") + 1, &value, sizeof(zval *), NULL);
+	
+	MAKE_STD_ZVAL(value);
+	ZVAL_LONG(value, channel->prefetch_count);
+	zend_hash_add(channel->debug_info, "prefetch_count", strlen("prefetch_count") + 1, &value, sizeof(zval *), NULL);
+	
+	MAKE_STD_ZVAL(value);
+	ZVAL_LONG(value, channel->prefetch_size);
+	zend_hash_add(channel->debug_info, "prefetch_size", strlen("prefetch_size") + 1, &value, sizeof(zval *), NULL);
+
+	/* Start adding values */
+	return channel->debug_info;
+}
+#endif
 
 void amqp_channel_dtor(void *object TSRMLS_DC)
 {
@@ -54,6 +88,11 @@ void amqp_channel_dtor(void *object TSRMLS_DC)
 	/* Destroy the connection storage */
 	if (channel->connection) {
 		zval_ptr_dtor(&channel->connection);
+	}
+	
+	if (channel->debug_info) {
+		zend_hash_destroy(channel->debug_info);
+		efree(channel->debug_info);
 	}
 	
 	zend_object_std_dtor(&channel->zo TSRMLS_CC);
@@ -70,8 +109,21 @@ zend_object_value amqp_channel_ctor(zend_class_entry *ce TSRMLS_DC)
 
 	zend_object_std_init(&channel->zo, ce TSRMLS_CC);
 
-	new_value.handle = zend_objects_store_put(channel, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t)amqp_channel_dtor, NULL TSRMLS_CC);
+	new_value.handle = zend_objects_store_put(
+		channel,
+		(zend_objects_store_dtor_t)zend_objects_destroy_object,
+		(zend_objects_free_object_storage_t)amqp_channel_dtor,
+		NULL TSRMLS_CC
+	);
+	
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
+	zend_object_handlers *handlers;
+	handlers = zend_get_std_object_handlers();
+	handlers->get_debug_info = amqp_channel_object_get_debug_info;
+	new_value.handlers = handlers;
+#else
 	new_value.handlers = zend_get_std_object_handlers();
+#endif
 
 	return new_value;
 }
@@ -130,7 +182,7 @@ PHP_METHOD(amqp_channel_class, __construct)
 	channel->is_connected = '\1';
 
 	/* Set the prefetch count: */
-	amqp_basic_qos_ok_t *r = amqp_basic_qos(
+	amqp_basic_qos(
 		connection->connection_resource->connection_state,
 		channel->channel_id,
 		0,							/* prefetch window size */
@@ -193,7 +245,7 @@ PHP_METHOD(amqp_channel_class, setPrefetchCount)
 	
 	/* If we are already connected, set the new prefetch count */
 	if (channel->is_connected) {
-		amqp_basic_qos_ok_t *r = amqp_basic_qos(
+		amqp_basic_qos(
 			connection->connection_resource->connection_state,
 			channel->channel_id,
 			channel->prefetch_size,
@@ -233,7 +285,7 @@ PHP_METHOD(amqp_channel_class, setPrefetchSize)
 	
 	/* If we are already connected, set the new prefetch count */
 	if (channel->is_connected) {
-		amqp_basic_qos_ok_t *r = amqp_basic_qos(
+		amqp_basic_qos(
 			connection->connection_resource->connection_state,
 			channel->channel_id,
 			channel->prefetch_size,
@@ -274,7 +326,7 @@ PHP_METHOD(amqp_channel_class, qos)
 	
 	/* If we are already connected, set the new prefetch count */
 	if (channel->is_connected) {
-		amqp_basic_qos_ok_t *r = amqp_basic_qos(
+		amqp_basic_qos(
 			connection->connection_resource->connection_state,
 			channel->channel_id,
 			channel->prefetch_size,
