@@ -33,6 +33,7 @@ object(AMQPQueue)#4 (7) {
   ["auto_delete"]=>
   bool(true)
   ["arguments"]=>
-  NULL
+  array(0) {
+  }
 }
 

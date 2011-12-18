@@ -64,5 +64,6 @@ object(AMQPEnvelope)#5 (18) {
   ["correlation_id"]=>
   string(0) ""
   ["headers"]=>
-  NULL
+  array(0) {
+  }
 }
