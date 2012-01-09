@@ -46,6 +46,7 @@ PHP_METHOD(amqp_queue_class, get);
 PHP_METHOD(amqp_queue_class, consume);
 PHP_METHOD(amqp_queue_class, ack);
 PHP_METHOD(amqp_queue_class, nack);
+PHP_METHOD(amqp_queue_class, reject);
 PHP_METHOD(amqp_queue_class, purge);
 
 PHP_METHOD(amqp_queue_class, cancel);

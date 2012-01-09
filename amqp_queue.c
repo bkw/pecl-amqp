@@ -1065,6 +1065,58 @@ PHP_METHOD(amqp_queue_class, nack)
 /* }}} */
 
 
+/* {{{ proto int AMQPQueue::reject(long deliveryTag, [bit flags=AMQP_NOPARAM]);
+	acknowledge the message
+*/
+PHP_METHOD(amqp_queue_class, reject)
+{
+	zval *id;
+	amqp_queue_object *queue;
+	amqp_channel_object *channel;
+	amqp_connection_object *connection;
+	
+	long deliveryTag = 0;
+	long flags = AMQP_NOPARAM;
+
+	amqp_basic_reject_t s;
+
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Ol|l", &id, amqp_queue_class_entry, &deliveryTag, &flags ) == FAILURE) {
+		return;
+	}
+
+	queue = (amqp_queue_object *)zend_object_store_get_object(id TSRMLS_CC);
+	/* Check that the given connection has a channel, before trying to pull the connection off the stack */
+	if (queue->is_connected != '\1') {
+		zend_throw_exception(amqp_queue_exception_class_entry, "Could not reject message. No connection available.", 0 TSRMLS_CC);
+		return;
+	}
+
+	channel = AMQP_GET_CHANNEL(queue);
+	AMQP_VERIFY_CHANNEL(channel, "Could not reject message.");
+	
+	connection = AMQP_GET_CONNECTION(channel);
+	AMQP_VERIFY_CONNECTION(connection, "Could not reject message.");
+	
+	s.delivery_tag = deliveryTag;
+	s.requeue = (AMQP_REQUEUE & flags) ? 1 : 0;
+
+	int res = amqp_send_method(
+		connection->connection_resource->connection_state,
+		channel->channel_id,
+		AMQP_BASIC_REJECT_METHOD,
+		&s
+	);
+
+	if (res) {
+		channel->is_connected = 0;
+		zend_throw_exception_ex(amqp_queue_exception_class_entry, 0 TSRMLS_CC, "Could not reject message, error code=%d", res);
+		return;
+	}
+
+	RETURN_TRUE;
+}
+/* }}} */
+
 
 /* {{{ proto int AMQPQueue::purge();
 purge queue
