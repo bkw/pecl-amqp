@@ -940,9 +940,9 @@ PHP_METHOD(amqp_queue_class, consume)
 			/* Clean up our mess */
 			zend_fcall_info_args_clear(&fci, 1);
 			zval_ptr_dtor(&params);
+		} else {
+			zval_ptr_dtor(&message);			
 		}
-		
-		zval_ptr_dtor(&message);
 
 	} while (read != AMQP_READ_ERROR && function_call_succeeded == 1);
 }
