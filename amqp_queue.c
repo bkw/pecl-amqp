@@ -49,10 +49,8 @@ HashTable *amqp_queue_object_get_debug_info(zval *object, int *is_temp TSRMLS_DC
 	/* Get the envelope object from which to read */
 	amqp_queue_object *queue = (amqp_queue_object *)zend_object_store_get_object(object TSRMLS_CC);
 	
-	if (queue->debug_info) {
-		zend_hash_destroy(queue->debug_info);
-		efree(queue->debug_info);
-	}
+	/* Super magic make shit work variable. Seriously though, without this using print_r and/or var_dump will either cause memory leak or crash. */
+	*is_temp = 1;
 	
 	/* Keep the # 18 matching the number of entries in this table*/
 	ALLOC_HASHTABLE(queue->debug_info);
@@ -103,11 +101,6 @@ void amqp_queue_dtor(void *object TSRMLS_DC)
 	/* Destroy the arguments storage */
 	if (queue->arguments) {
 		zval_ptr_dtor(&queue->arguments);
-	}
-	
-	if (queue->debug_info) {
-		zend_hash_destroy(queue->debug_info);
-		efree(queue->debug_info);
 	}
 
 	zend_object_std_dtor(&queue->zo TSRMLS_CC);

@@ -49,10 +49,8 @@ HashTable *amqp_channel_object_get_debug_info(zval *object, int *is_temp TSRMLS_
 	/* Get the envelope object from which to read */
 	amqp_channel_object *channel = (amqp_channel_object *)zend_object_store_get_object(object TSRMLS_CC);
 	
-	if (channel->debug_info) {
-		zend_hash_destroy(channel->debug_info);
-		efree(channel->debug_info);
-	}
+	/* Super magic make shit work variable. Seriously though, without this using print_r and/or var_dump will either cause memory leak or crash. */
+	*is_temp = 1;
 	
 	/* Keep the first number matching the number of entries in this table*/
 	ALLOC_HASHTABLE(channel->debug_info);
@@ -88,11 +86,6 @@ void amqp_channel_dtor(void *object TSRMLS_DC)
 	/* Destroy the connection storage */
 	if (channel->connection) {
 		zval_ptr_dtor(&channel->connection);
-	}
-	
-	if (channel->debug_info) {
-		zend_hash_destroy(channel->debug_info);
-		efree(channel->debug_info);
 	}
 	
 	zend_object_std_dtor(&channel->zo TSRMLS_CC);

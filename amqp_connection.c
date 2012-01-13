@@ -45,14 +45,12 @@
 HashTable *amqp_connection_object_get_debug_info(zval *object, int *is_temp TSRMLS_DC) {
 	zval *value;
 	
+	/* Super magic make shit work variable. Seriously though, without this using print_r and/or var_dump will either cause memory leak or crash. */
+	*is_temp = 1;
+	
 	/* Get the envelope object from which to read */
 	amqp_connection_object *connection = (amqp_connection_object *)zend_object_store_get_object(object TSRMLS_CC);
-	
-	if (connection->debug_info) {
-		zend_hash_destroy(connection->debug_info);
-		efree(connection->debug_info);
-	}
-	
+		
 	/* Keep the first number matching the number of entries in this table*/
 	ALLOC_HASHTABLE(connection->debug_info);
 	ZEND_INIT_SYMTABLE_EX(connection->debug_info, 5 + 1, 0);
@@ -317,11 +315,6 @@ void amqp_connection_dtor(void *object TSRMLS_DC)
 			efree(connection->connection_resource->slots);
 		}
 		efree(connection->connection_resource);
-	}
-	
-	if (connection->debug_info) {
-		zend_hash_destroy(connection->debug_info);
-		efree(connection->debug_info);
 	}
 	
 	zend_object_std_dtor(&connection->zo TSRMLS_CC);

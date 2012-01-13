@@ -48,10 +48,8 @@ HashTable *amqp_envelope_object_get_debug_info(zval *object, int *is_temp TSRMLS
 	/* Get the envelope object from which to read */
 	amqp_envelope_object *envelope = (amqp_envelope_object *)zend_object_store_get_object(object TSRMLS_CC);
 	
-	if (envelope->debug_info) {
-		zend_hash_destroy(envelope->debug_info);
-		efree(envelope->debug_info);
-	}
+	/* Super magic make shit work variable. Seriously though, without this using print_r and/or var_dump will either cause memory leak or crash. */
+	*is_temp = 1;
 	
 	/* Keep the # 18 matching the number of entries in this table*/
 	ALLOC_HASHTABLE(envelope->debug_info);
@@ -143,11 +141,6 @@ void amqp_envelope_dtor(void *object TSRMLS_DC)
 	
 	if (envelope->body) {
 		efree(envelope->body);
-	}
-	
-	if (envelope->debug_info) {
-		zend_hash_destroy(envelope->debug_info);
-		efree(envelope->debug_info);
 	}
 	
 	zend_object_std_dtor(&envelope->zo TSRMLS_CC);

@@ -49,11 +49,9 @@ HashTable *amqp_exchange_object_get_debug_info(zval *object, int *is_temp TSRMLS
 	/* Get the envelope object from which to read */
 	amqp_exchange_object *exchange = (amqp_exchange_object *)zend_object_store_get_object(object TSRMLS_CC);
 
-	if (exchange->debug_info) {
-		zend_hash_destroy(exchange->debug_info);
-		efree(exchange->debug_info);
-	}
-
+	/* Super magic make shit work variable. Seriously though, without this using print_r and/or var_dump will either cause memory leak or crash. */
+	*is_temp = 1;
+	
 	/* Keep the first number matching the number of entries in this table*/
 	ALLOC_HASHTABLE(exchange->debug_info);
 	ZEND_INIT_SYMTABLE_EX(exchange->debug_info, 5 + 1, 0);
@@ -93,11 +91,6 @@ void amqp_exchange_dtor(void *object TSRMLS_DC)
 
 	if (exchange->arguments) {
 		zval_ptr_dtor(&exchange->arguments);
-	}
-	
-	if (exchange->debug_info) {
-		zend_hash_destroy(exchange->debug_info);
-		efree(exchange->debug_info);
 	}
 
 	zend_object_std_dtor(&exchange->zo TSRMLS_CC);
