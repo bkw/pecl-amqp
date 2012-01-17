@@ -57,8 +57,8 @@ if test "$PHP_AMQP" != "no"; then
 
 	dnl # --with-amqp -> check for lib and symbol presence
 
-	LIBNAME=amqp # you may want to change this
-	LIBSYMBOL=amqp # you most likely want to change this 
+	LIBNAME=rabbitmq
+	LIBSYMBOL=rabbitmq
 
 
 	PHP_ADD_LIBRARY_WITH_PATH($LIBNAME, $AMQP_DIR/lib, AMQP_SHARED_LIBADD)
