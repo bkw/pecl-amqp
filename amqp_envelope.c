@@ -124,7 +124,8 @@ HashTable *amqp_envelope_object_get_debug_info(zval *object, int *is_temp TSRMLS
 	ZVAL_STRINGL(value, envelope->correlation_id, strlen(envelope->correlation_id), 1);
 	zend_hash_add(envelope->debug_info, "correlation_id", strlen("correlation_id") + 1, &value, sizeof(zval *), NULL);
 	
-	zend_hash_add(envelope->debug_info, "headers", strlen("headers") + 1, &envelope->headers, sizeof(&envelope->headers), NULL);
+	Z_ADDREF_P(envelope->headers);
+	zend_hash_add(envelope->debug_info, "headers", strlen("headers") + 1, &envelope->headers, sizeof(envelope->headers), NULL);
 	
 	return envelope->debug_info;
 }
@@ -162,7 +163,7 @@ zend_object_value amqp_envelope_ctor(zend_class_entry *ce TSRMLS_DC)
 
 	new_value.handle = zend_objects_store_put(envelope, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t)amqp_envelope_dtor, NULL TSRMLS_CC);
 
-#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
+#if 0 && PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
 	zend_object_handlers *handlers;
 	handlers = zend_get_std_object_handlers();
 	handlers->get_debug_info = amqp_envelope_object_get_debug_info;
@@ -548,12 +549,11 @@ PHP_METHOD(amqp_envelope_class, getHeader)
 	if (zend_hash_find(HASH_OF(envelope->headers), key, key_len + 1, (void **)&tmp) == FAILURE) {
 		RETURN_FALSE;
 	}
-
-	efree(return_value);
-	*return_value = **tmp;
-	// zval_copy_ctor(return_value);
 	
-	Z_ADDREF_P(return_value);
+	*return_value = **tmp;
+	zval_copy_ctor(return_value);
+	INIT_PZVAL(return_value);
+	
 }
 /* }}} */
 

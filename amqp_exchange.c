@@ -118,7 +118,7 @@ zend_object_value amqp_exchange_ctor(zend_class_entry *ce TSRMLS_DC)
 		NULL TSRMLS_CC
 	);
 	
-#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
+#if 0 && PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
 	zend_object_handlers *handlers;
 	handlers = zend_get_std_object_handlers();
 	handlers->get_debug_info = amqp_exchange_object_get_debug_info;
@@ -340,8 +340,7 @@ PHP_METHOD(amqp_exchange_class, getArgument)
 	
 	*return_value = **tmp;
 	zval_copy_ctor(return_value);
-	
-	Z_ADDREF_P(return_value);
+	INIT_PZVAL(return_value);	
 }
 /* }}} */
 
