@@ -21,19 +21,20 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <api>1.0.0</api>
  </version>
  <stability>
-  <release>production</release>
-  <api>production</api>
+  <release>stable</release>
+  <api>stable</api>
  </stability>
  <license uri="http://www.php.net/license">PHP License</license>
  <notes>
 1.0.0 Release:
 Changed/finalized API signature:
     * Exposing AMQPChannel
+    * Exposing AMQPEnvelope
     * Exposing more queue and exchange arguments and flags
     * Exposing basic.qos
 Added persistent connections
 Cleaned up codebase
-Fixed memory leaks
+Fixed memory leaks and segmentation faults
      
 0.3.1 Release:
 Fixed bug:
