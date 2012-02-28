@@ -260,6 +260,11 @@ void remove_channel_from_connection(amqp_connection_object *connection, amqp_cha
 	/* Pull out the ring buffer for ease of use */
 	amqp_connection_resource *resource = connection->connection_resource;
 	
+	/* Check that there is actually an open connection */
+	if (!resource) {
+		return;
+	}
+	
 	/* Go through the slots looking for an opening */
 	for (slot = 1; slot < DEFAULT_CHANNELS_PER_CONNECTION; slot++) {
 		if (resource->slots[slot] == channel) {
