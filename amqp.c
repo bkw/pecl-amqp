@@ -558,7 +558,7 @@ void amqp_error(amqp_rpc_reply_t x, char ** pstr)
 char *stringify_bytes(amqp_bytes_t bytes)
 {
 /* We will need up to 4 chars per byte, plus the terminating 0 */
-	char *res = malloc(bytes.len * 4 + 1);
+	char *res = emalloc(bytes.len * 4 + 1);
 	uint8_t *data = bytes.bytes;
 	char *p = res;
 	size_t i;
@@ -753,7 +753,7 @@ PHP_MINFO_FUNCTION(amqp)
 	spprintf(pstr, 0, "%s @ %s", __DATE__, __TIME__);
 
 	php_info_print_table_start();
-	php_info_print_table_header(2, "Version",					"1.0.0");
+	php_info_print_table_header(2, "Version",					"1.0.1");
 	php_info_print_table_header(2, "Revision",					"$Revision$");
 	php_info_print_table_header(2, "Compiled",					*pstr);
 	php_info_print_table_header(2, "AMQP protocol version", 	"0-9-1");
