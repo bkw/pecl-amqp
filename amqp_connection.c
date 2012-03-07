@@ -150,7 +150,7 @@ void php_amqp_connect(amqp_connection_object *connection, int persistent TSRMLS_
 	amqp_rpc_reply_t x = amqp_login(
 		connection->connection_resource->connection_state,
 		connection->vhost,
-		0,							/* Channel max */
+		CHANNEL_MAX,
 		FRAME_MAX,
 		AMQP_HEARTBEAT,
 		AMQP_SASL_METHOD_PLAIN,
