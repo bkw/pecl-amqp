@@ -288,9 +288,11 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_delete, ZEND_SEND_BY_VAL, ZEN
 	ZEND_ARG_INFO(0, exchange_name)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_publish, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_amqp_exchange_class_publish, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
 	ZEND_ARG_INFO(0, message)
 	ZEND_ARG_INFO(0, routing_key)
+	ZEND_ARG_INFO(0, flags)
+	ZEND_ARG_INFO(0, headers)
 ZEND_END_ARG_INFO()
 
 

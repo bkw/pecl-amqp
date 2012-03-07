@@ -14,7 +14,6 @@ $ex->setType(AMQP_EX_TYPE_DIRECT);
 $ex->declare();
 
 $queue = new AMQPQueue($ch);
-$queue->setName("Big bad blly");
 $queue->declare();
 var_dump(substr($queue->getName(), 0, strlen('amq.gen-')));
 

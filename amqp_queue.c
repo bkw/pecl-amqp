@@ -745,6 +745,11 @@ PHP_METHOD(amqp_queue_class, bind)
 	connection = AMQP_GET_CONNECTION(channel);
 	AMQP_VERIFY_CONNECTION(connection, "Could not bind queue.");
 
+	if (!keyname_len) {
+		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not bind exchange. No routing key given.", 0 TSRMLS_CC);
+		return;
+	}
+
 	amqp_queue_bind_t s;
 	s.ticket 				= 0;
 	s.queue.len				= queue->name_len;

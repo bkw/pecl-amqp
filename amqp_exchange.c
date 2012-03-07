@@ -563,7 +563,7 @@ PHP_METHOD(amqp_exchange_class, delete)
 }
 /* }}} */
 
-/* {{{ proto AMQPExchange::publish(string msg, string key, [int flags, [array headers]]);
+/* {{{ proto AMQPExchange::publish(string msg, [string key, [int flags, [array headers]]]);
 publish into Exchange
 */
 PHP_METHOD(amqp_exchange_class, publish)
@@ -588,7 +588,7 @@ PHP_METHOD(amqp_exchange_class, publish)
 
 	amqp_rpc_reply_t res;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss|la", &id, amqp_exchange_class_entry, &msg, &msg_len, &key_name, &key_len, &flags, &iniArr) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os|sla", &id, amqp_exchange_class_entry, &msg, &msg_len, &key_name, &key_len, &flags, &iniArr) == FAILURE) {
 		return;
 	}
 
@@ -596,11 +596,6 @@ PHP_METHOD(amqp_exchange_class, publish)
 
 	if (exchange->name_len < 0) {
 		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not publish to exchange. Exchange name not set.", 0 TSRMLS_CC);
-		return;
-	}
-	
-	if (!key_len) {
-		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not publish to exchange. No routing key given.", 0 TSRMLS_CC);
 		return;
 	}
 
@@ -835,6 +830,11 @@ PHP_METHOD(amqp_exchange_class, bind)
 	
 	connection = AMQP_GET_CONNECTION(channel);
 	AMQP_VERIFY_CONNECTION(connection, "Could not bind to exchanges.");
+
+	if (!keyname_len) {
+		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not bind exchange. No routing key given.", 0 TSRMLS_CC);
+		return;
+	}
 
 	amqp_exchange_bind_t s;
 	s.ticket				= 0;
