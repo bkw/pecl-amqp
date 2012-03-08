@@ -844,7 +844,9 @@ PHP_METHOD(amqp_queue_class, get)
 	);
 	
 	/* Read the message off of the channel */
-	int read = read_message_from_channel(connection->connection_resource->connection_state, return_value);
+	zval *message;
+	MAKE_STD_ZVAL(message);
+	int read = read_message_from_channel(connection->connection_resource->connection_state, message);
 	
 	/* Set the QOS back to what the user requested at the beginning */
 	amqp_basic_qos(
@@ -854,11 +856,13 @@ PHP_METHOD(amqp_queue_class, get)
 		channel->prefetch_count,	/* prefetch message count */
 		0							/* global flag */
 	);
-
-	if (read != AMQP_READ_SUCCESS) {
-		/* Bad things happened. Bail */
+    
+	if (read == AMQP_READ_SUCCESS) {
+		COPY_PZVAL_TO_ZVAL(*return_value, message);
+	} else {
+		zval_ptr_dtor(&message);
 		RETURN_FALSE;
-	}	
+    	}
 }
 /* }}} */
 
