@@ -29,6 +29,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
 1.0.2 Release:
 Fixed bug:
     * Memory leak when using AMQPQueue::get from a queue with no messages
+
 1.0.1 Release:
 Fixed bug:
     * 61247: Allow queue creation with empty queue name, and return auto generated name
