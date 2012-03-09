@@ -755,7 +755,7 @@ PHP_MINFO_FUNCTION(amqp)
 	spprintf(pstr, 0, "%s @ %s", __DATE__, __TIME__);
 
 	php_info_print_table_start();
-	php_info_print_table_header(2, "Version",					"1.0.1");
+	php_info_print_table_header(2, "Version",					"1.0.2");
 	php_info_print_table_header(2, "Revision",					"$Revision$");
 	php_info_print_table_header(2, "Compiled",					*pstr);
 	php_info_print_table_header(2, "AMQP protocol version", 	"0-9-1");
