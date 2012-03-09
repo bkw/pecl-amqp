@@ -86,7 +86,7 @@ HashTable *amqp_connection_object_get_debug_info(zval *object, int *is_temp TSRM
  *	handles connecting to amqp
  *	called by connect() and reconnect()
  */
-void php_amqp_connect(amqp_connection_object *connection, int persistent TSRMLS_DC)
+int php_amqp_connect(amqp_connection_object *connection, int persistent TSRMLS_DC)
 {
 	char str[256];
 	char ** pstr = (char **) &str;
@@ -142,7 +142,7 @@ void php_amqp_connect(amqp_connection_object *connection, int persistent TSRMLS_
 		signal(SIGPIPE, old_handler);
 
 		zend_throw_exception(amqp_connection_exception_class_entry, "Socket error: could not connect to host.", 0 TSRMLS_CC);
-		return;
+		return 0;
 	}
 
 	amqp_set_sockfd(connection->connection_resource->connection_state, connection->connection_resource->fd);
@@ -162,10 +162,12 @@ void php_amqp_connect(amqp_connection_object *connection, int persistent TSRMLS_
 		amqp_error(x, pstr);
 		strcat(*pstr, " - Potential login failure.");
 		zend_throw_exception(amqp_connection_exception_class_entry, *pstr, 0 TSRMLS_CC);
-		return;
+		return 0;
 	}
 
 	connection->is_connected = '\1';
+	
+	return 1;
 }
 
 /* 	php_amqp_disconnect
@@ -496,10 +498,7 @@ PHP_METHOD(amqp_connection_class, connect)
 	connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
 		
 	/* Actually connect this resource to the broker */
-	php_amqp_connect(connection, 0 TSRMLS_CC);
-	
-	/* @TODO: return connection success or failure */
-	RETURN_TRUE;
+	RETURN_BOOL(php_amqp_connect(connection, 0 TSRMLS_CC));
 }
 /* }}} */
 
@@ -540,7 +539,12 @@ PHP_METHOD(amqp_connection_class, pconnect)
 	}
 
 	/* No resource found: Instantiate the underlying connection */
-	php_amqp_connect(connection, 1 TSRMLS_CC);
+	int result = php_amqp_connect(connection, 1 TSRMLS_CC);
+	
+	/* Check the connection result. We dont want to do anything else if we werent successful */
+	if (!result) {
+		RETURN_FALSE;
+	}
 	
 	/* Store a reference in the persistence list */
     new_le.ptr = connection->connection_resource;
@@ -550,7 +554,6 @@ PHP_METHOD(amqp_connection_class, pconnect)
 	/* Cleanup our key */
 	efree(key);
 	
-	/* @TODO: return connection success or failure */
 	RETURN_TRUE;
 }
 /* }}} */
