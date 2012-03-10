@@ -511,7 +511,7 @@ PHP_METHOD(amqp_connection_class, pconnect)
 	amqp_connection_object *connection;
 	char *key;
 	int key_len;
-    list_entry *le, new_le;
+	zend_rsrc_list_entry *le, new_le;
 
 	/* Try to pull amqp object out of method params */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_connection_class_entry) == FAILURE) {
@@ -549,7 +549,7 @@ PHP_METHOD(amqp_connection_class, pconnect)
 	/* Store a reference in the persistence list */
     new_le.ptr = connection->connection_resource;
     new_le.type = le_amqp_connection_resource;
-    zend_hash_add(&EG(persistent_list), key, key_len + 1, &new_le, sizeof(list_entry), NULL);
+    zend_hash_add(&EG(persistent_list), key, key_len + 1, &new_le, sizeof(zend_rsrc_list_entry), NULL);
 	
 	/* Cleanup our key */
 	efree(key);
