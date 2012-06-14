@@ -145,7 +145,7 @@ zend_object_value amqp_queue_ctor(zend_class_entry *ce TSRMLS_DC)
 /*
 Read a message that is pending on a channel. A call to basic.get or basic.consume must preceed this call.
 */
-int read_message_from_channel(amqp_connection_state_t connection, zval *envelopeZval) {
+int read_message_from_channel(amqp_connection_state_t connection, zval *envelopeZval TSRMLS_DC) {
 	size_t body_received = 0;
 	size_t body_target = 0;
 	char *message_body_buffer = NULL;
@@ -846,7 +846,7 @@ PHP_METHOD(amqp_queue_class, get)
 	/* Read the message off of the channel */
 	zval *message;
 	MAKE_STD_ZVAL(message);
-	int read = read_message_from_channel(connection->connection_resource->connection_state, message);
+	int read = read_message_from_channel(connection->connection_resource->connection_state, message TSRMLS_CC);
 	
 	/* Set the QOS back to what the user requested at the beginning */
 	amqp_basic_qos(
@@ -920,7 +920,7 @@ PHP_METHOD(amqp_queue_class, consume)
 		MAKE_STD_ZVAL(message);
 		
 		/* Read the message */
-		read = read_message_from_channel(connection->connection_resource->connection_state, message);
+		read = read_message_from_channel(connection->connection_resource->connection_state, message TSRMLS_CC);
 
 		/* Make the callback */
 		if (read == AMQP_READ_SUCCESS) {
