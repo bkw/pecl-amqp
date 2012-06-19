@@ -749,15 +749,10 @@ PHP_MSHUTDOWN_FUNCTION(amqp)
 */
 PHP_MINFO_FUNCTION(amqp)
 {
-	/* Build date time from compiler macros */
-	char datetime[32];
-	char **pstr = (char **)&datetime;
-	spprintf(pstr, 0, "%s @ %s", __DATE__, __TIME__);
-
 	php_info_print_table_start();
 	php_info_print_table_header(2, "Version",					"1.0.2");
 	php_info_print_table_header(2, "Revision",					"$Revision$");
-	php_info_print_table_header(2, "Compiled",					*pstr);
+	php_info_print_table_header(2, "Compiled",					__DATE__ " @ "  __TIME__);
 	php_info_print_table_header(2, "AMQP protocol version", 	"0-9-1");
 	DISPLAY_INI_ENTRIES();
 
