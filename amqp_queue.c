@@ -374,7 +374,8 @@ int read_message_from_channel(amqp_connection_state_t connection, zval *envelope
 	
 	/* Put the final touches into the zval */
 	envelope->body = estrndup(message_body_buffer, body_target);
-	
+    envelope->body_len = body_target;
+    
 	/* Clean up message buffer */
 	if (message_body_buffer) {
 		efree(message_body_buffer);

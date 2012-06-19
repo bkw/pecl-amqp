@@ -322,6 +322,7 @@ typedef struct _amqp_exchange_object {
 typedef struct _amqp_envelope_object {
 	zend_object zo;
 	char *body;
+	size_t body_len;
 	char routing_key[255];
 	uint delivery_tag;
 	int delivery_mode;

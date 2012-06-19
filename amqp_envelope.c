@@ -57,7 +57,7 @@ HashTable *amqp_envelope_object_get_debug_info(zval *object, int *is_temp TSRMLS
 	
 	/* Start adding values */
 	MAKE_STD_ZVAL(value);
-	ZVAL_STRINGL(value, envelope->body, strlen(envelope->body), 1);
+	ZVAL_STRINGL(value, envelope->body, envelope->body_len, 1);
 	zend_hash_add(envelope->debug_info, "body", strlen("body") + 1, &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
@@ -213,7 +213,7 @@ PHP_METHOD(amqp_envelope_class, getBody)
 		RETURN_FALSE;
 	}
 
-	RETURN_STRING(envelope->body, 1);
+	RETURN_STRINGL(envelope->body, envelope->body_len, 1);
 }
 /* }}} */
 
