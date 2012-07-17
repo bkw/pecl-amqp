@@ -260,6 +260,7 @@ PHP_METHOD(amqp_exchange_class, setFlags)
 	/* Set the flags based on the bitmask we were given */
 	exchange->passive = IS_PASSIVE(flagBitmask);
 	exchange->durable = IS_DURABLE(flagBitmask);
+    exchange->auto_delete = IS_AUTODELETE(flagBitmask);
 }
 /* }}} */
 

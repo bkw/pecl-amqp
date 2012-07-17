@@ -569,6 +569,47 @@ PHP_METHOD(amqp_connection_class, pconnect)
 }
 /* }}} */
 
+
+/* {{{ proto amqp:pdisconnect()
+destroy amqp persistent connection */
+PHP_METHOD(amqp_connection_class, pdisconnect)
+{
+	char *key;
+	int key_len;
+
+	zval *id;
+	amqp_connection_object *connection;
+
+
+	/* Try to pull amqp object out of method params */
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, amqp_connection_class_entry) == FAILURE) {
+		return;
+	}
+
+	/* Get the connection object out of the store */
+	connection = (amqp_connection_object *)zend_object_store_get_object(id TSRMLS_CC);
+
+	if (!connection->connection_resource->is_persistent) {
+		RETURN_FALSE;
+	}
+
+	key_len = spprintf(&key, 0, "amqp_conn_res_%s_%d_%s_%s", connection->host, connection->port, connection->vhost, connection->login);
+
+	if (zend_hash_exists(&EG(persistent_list), key, key_len + 1)) {
+		zend_hash_del(&EG(persistent_list), key, key_len + 1);
+	}
+
+	connection->connection_resource->is_persistent = 0;
+
+	php_amqp_disconnect(connection);
+
+	RETURN_TRUE;
+}
+
+/* }}} */
+
+
+
 /* {{{ proto amqp::disconnect()
 destroy amqp connection */
 PHP_METHOD(amqp_connection_class, disconnect)

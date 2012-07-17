@@ -38,6 +38,7 @@ PHP_METHOD(amqp_connection_class, __construct);
 PHP_METHOD(amqp_connection_class, isConnected);
 PHP_METHOD(amqp_connection_class, connect);
 PHP_METHOD(amqp_connection_class, pconnect);
+PHP_METHOD(amqp_connection_class, pdisconnect);
 PHP_METHOD(amqp_connection_class, disconnect);
 PHP_METHOD(amqp_connection_class, reconnect);
 

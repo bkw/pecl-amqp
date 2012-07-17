@@ -314,7 +314,8 @@ typedef struct _amqp_exchange_object {
 	char type[255];
 	int type_len;
 	int passive; /* @TODO: consider making these bit fields */
-	int durable; /* end @TODO */
+	int durable;
+	int auto_delete; /* end @TODO */
 	zval *arguments;
 	HashTable *debug_info;
 } amqp_exchange_object;
