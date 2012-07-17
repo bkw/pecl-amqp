@@ -296,6 +296,7 @@ static void amqp_connection_resource_dtor_persistent(zend_rsrc_list_entry *rsrc 
 
 void amqp_connection_dtor(void *object TSRMLS_DC)
 {
+    int slot;
 	amqp_connection_object *connection = (amqp_connection_object*)object;
 
 	php_amqp_disconnect(connection);
@@ -319,9 +320,19 @@ void amqp_connection_dtor(void *object TSRMLS_DC)
 
 	if (connection->connection_resource && connection->connection_resource->is_persistent == 0) {
 		if (connection->connection_resource->slots) {
-			efree(connection->connection_resource->slots);
+			for (slot = 1; slot < DEFAULT_CHANNELS_PER_CONNECTION; slot++) {
+				if (!connection->connection_resource->slots[slot]) {
+					continue;
+				}
+				amqp_channel_close(connection->connection_resource->connection_state, connection->connection_resource->slots[slot]->channel_id, AMQP_REPLY_SUCCESS);
+				/* Clean up our local storage */
+				connection->connection_resource->slots[slot] = 0;
+				connection->connection_resource->used_slots--;
+			}
 		}
+		efree(connection->connection_resource->slots);
 		efree(connection->connection_resource);
+		connection->connection_resource = 0;
 	}
 	
 	zend_object_std_dtor(&connection->zo TSRMLS_CC);
