@@ -117,6 +117,7 @@ zend_object_value amqp_queue_ctor(zend_class_entry *ce TSRMLS_DC)
 	memset(queue, 0, sizeof(amqp_queue_object));
 
 	zend_object_std_init(&queue->zo, ce TSRMLS_CC);
+	AMQP_OBJECT_PROPERTIES_INIT(queue->zo, ce);
 
 	// Initialize the arguments array:
 	MAKE_STD_ZVAL(queue->arguments);
@@ -129,7 +130,7 @@ zend_object_value amqp_queue_ctor(zend_class_entry *ce TSRMLS_DC)
 		NULL TSRMLS_CC
 	);
 	
-#if 0 && PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
 	zend_object_handlers *handlers;
 	handlers = zend_get_std_object_handlers();
 	handlers->get_debug_info = amqp_queue_object_get_debug_info;

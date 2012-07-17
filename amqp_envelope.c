@@ -160,6 +160,7 @@ zend_object_value amqp_envelope_ctor(zend_class_entry *ce TSRMLS_DC)
 	array_init(envelope->headers);
 
 	zend_object_std_init(&envelope->zo, ce TSRMLS_CC);
+	AMQP_OBJECT_PROPERTIES_INIT(envelope->zo, ce);
 
 	new_value.handle = zend_objects_store_put(envelope, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t)amqp_envelope_dtor, NULL TSRMLS_CC);
 

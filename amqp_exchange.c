@@ -110,6 +110,7 @@ zend_object_value amqp_exchange_ctor(zend_class_entry *ce TSRMLS_DC)
 	array_init(exchange->arguments);
 
 	zend_object_std_init(&exchange->zo, ce TSRMLS_CC);
+	AMQP_OBJECT_PROPERTIES_INIT(exchange->zo, ce);
 
 	new_value.handle = zend_objects_store_put(
 		exchange,
@@ -118,7 +119,7 @@ zend_object_value amqp_exchange_ctor(zend_class_entry *ce TSRMLS_DC)
 		NULL TSRMLS_CC
 	);
 	
-#if 0 && PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
 	zend_object_handlers *handlers;
 	handlers = zend_get_std_object_handlers();
 	handlers->get_debug_info = amqp_exchange_object_get_debug_info;

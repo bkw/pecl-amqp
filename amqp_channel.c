@@ -101,6 +101,7 @@ zend_object_value amqp_channel_ctor(zend_class_entry *ce TSRMLS_DC)
 	memset(channel, 0, sizeof(amqp_channel_object));
 
 	zend_object_std_init(&channel->zo, ce TSRMLS_CC);
+	AMQP_OBJECT_PROPERTIES_INIT(channel->zo, ce);
 
 	new_value.handle = zend_objects_store_put(
 		channel,
@@ -109,7 +110,7 @@ zend_object_value amqp_channel_ctor(zend_class_entry *ce TSRMLS_DC)
 		NULL TSRMLS_CC
 	);
 	
-#if 0 && PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
 	zend_object_handlers *handlers;
 	handlers = zend_get_std_object_handlers();
 	handlers->get_debug_info = amqp_channel_object_get_debug_info;
