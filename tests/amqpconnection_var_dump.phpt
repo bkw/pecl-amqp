@@ -10,9 +10,9 @@ var_dump($cnn);
 --EXPECT--
 object(AMQPConnection)#1 (5) {
   ["login"]=>
-  string(4) "guest"
+  string(5) "guest"
   ["password"]=>
-  string(4) "guest"
+  string(5) "guest"
   ["host"]=>
   string(9) "localhost"
   ["vhost"]=>

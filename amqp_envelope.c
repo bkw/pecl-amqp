@@ -164,7 +164,7 @@ zend_object_value amqp_envelope_ctor(zend_class_entry *ce TSRMLS_DC)
 
 	new_value.handle = zend_objects_store_put(envelope, (zend_objects_store_dtor_t)zend_objects_destroy_object, (zend_objects_free_object_storage_t)amqp_envelope_dtor, NULL TSRMLS_CC);
 
-#if 0 && PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
 	zend_object_handlers *handlers;
 	handlers = zend_get_std_object_handlers();
 	handlers->get_debug_info = amqp_envelope_object_get_debug_info;
