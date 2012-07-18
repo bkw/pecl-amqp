@@ -108,6 +108,38 @@ Fixed bugs:
    <file name="amqp_exchange.h" role="src" />
    <file name="amqp_queue.h" role="src" />
    <file name="amqp_envelope.h" role="src" />
+   <file name="tests/amqpchannel_construct_basic.phpt" role="test" />
+   <file name="tests/amqpchannel_multi_channel_connection.phpt" role="test" />
+   <file name="tests/amqpchannel_var_dump.phpt" role="test" />
+   <file name="tests/amqpconnection_construct_basic.phpt" role="test" />
+   <file name="tests/amqpconnection_persistent.phpt" role="test" />
+   <file name="tests/amqpconnection_setPort_int.phpt" role="test" />
+   <file name="tests/amqpconnection_setPort_out_of_range.phpt" role="test" />
+   <file name="tests/amqpconnection_setPort_string.phpt" role="test" />
+   <file name="tests/amqpconnection_toomanychannels.phpt" role="test" />
+   <file name="tests/amqpconnection_var_dump.phpt" role="test" />
+   <file name="tests/amqpenvelope_get_accessors.phpt" role="test" />
+   <file name="tests/amqpenvelope_var_dump.phpt" role="test" />
+   <file name="tests/amqpexchange_channel_refcount.phpt" role="test" />
+   <file name="tests/amqpexchange_construct_basic.phpt" role="test" />
+   <file name="tests/amqpexchange_declare_basic.phpt" role="test" />
+   <file name="tests/amqpexchange_publish_basic.phpt" role="test" />
+   <file name="tests/amqpexchange_publish_empty_routing_key.phpt" role="test" />
+   <file name="tests/amqpexchange_set_flag.phpt" role="test" />
+   <file name="tests/amqpexchange_var_dump.phpt" role="test" />
+   <file name="tests/amqpqueue_bind_basic.phpt" role="test" />
+   <file name="tests/amqpqueue_construct_basic.phpt" role="test" />
+   <file name="tests/amqpqueue_consume_basic.phpt" role="test" />
+   <file name="tests/amqpqueue_declare_basic.phpt" role="test" />
+   <file name="tests/amqpqueue_empty_name.phpt" role="test" />
+   <file name="tests/amqpqueue_get_basic.phpt" role="test" />
+   <file name="tests/amqpqueue_get_empty_body.phpt" role="test" />
+   <file name="tests/amqpqueue_get_headers.phpt" role="test" />
+   <file name="tests/amqpqueue_purge_basic.phpt" role="test" />
+   <file name="tests/amqpqueue_var_dump.phpt" role="test" />
+   <file name="tests/bug_17831.phpt" role="test" />
+   <file name="tests/bug_19707.phpt" role="test" />
+   <file name="tests/bug_19840.phpt" role="test" />
   </dir> <!-- / -->
  </contents>
  <dependencies>
