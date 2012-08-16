@@ -206,6 +206,15 @@ int read_message_from_channel(amqp_connection_state_t connection, zval *envelope
 		} else if (frame.payload.method.id == AMQP_BASIC_GET_EMPTY_METHOD) {
 			/* We did a get and there were no messages */
 			return AMQP_READ_NO_MESSAGES;
+		} else if (frame.payload.method.id == AMQP_CONNECTION_CLOSE_METHOD) {
+			amqp_channel_close_t *err = NULL;
+			amqp_send_method(
+				connection,
+				frame.channel,
+				AMQP_CONNECTION_CLOSE_OK_METHOD,
+				&err
+			);
+			return AMQP_READ_ERROR;
 		}
 		
 		/* Read in the next frame */
