@@ -137,7 +137,8 @@ PHP_METHOD(amqp_channel_class, __construct)
 
 	/* Parse out the method parameters */
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "OO", &id, amqp_channel_class_entry, &connObj, amqp_connection_class_entry) == FAILURE) {
-		return;
+		zend_throw_exception(amqp_channel_exception_class_entry, "Parameter must be an instance of AMQPConnection.", 0 TSRMLS_CC);
+		RETURN_NULL();
 	}
 
 	channel = (amqp_channel_object *)zend_object_store_get_object(id TSRMLS_CC);
