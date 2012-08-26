@@ -28,6 +28,10 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <notes>
 1.0.5 Release:
     * 62696: Incorrect exchange type
+    * Handles server connections being closed during consume and publish correctly
+    * 62628: Exception thrown in consume will lock PHP
+
+    
 1.0.4 Release:
     * 62549: Fixing broken persistent connection
     * 62412: Fixing segfault due to destruction order

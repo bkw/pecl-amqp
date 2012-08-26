@@ -961,7 +961,7 @@ PHP_METHOD(amqp_queue_class, consume)
 			}
 			
 			/* Check if user land function wants to bail */
-			if (Z_TYPE_P(return_value) == IS_BOOL && !Z_BVAL_P(return_value)) {
+			if (EG(exception) || (Z_TYPE_P(return_value) == IS_BOOL && !Z_BVAL_P(return_value))) {
 				function_call_succeeded = 0;
 			}
 			
