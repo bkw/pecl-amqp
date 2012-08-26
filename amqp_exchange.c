@@ -306,11 +306,11 @@ PHP_METHOD(amqp_exchange_class, setType)
 	exchange = (amqp_exchange_object *)zend_object_store_get_object(id TSRMLS_CC);
 	
 	if (strcmp(type, AMQP_EX_TYPE_DIRECT) != 0
-	&& strcmp(type, AMQP_EX_TYPE_HEADER) != 0
+	&& strcmp(type, AMQP_EX_TYPE_HEADERS) != 0
 	&& strcmp(type, AMQP_EX_TYPE_TOPIC) != 0
 	&& strcmp(type, AMQP_EX_TYPE_FANOUT) != 0
 	) {
-		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not set exchange type. Exchange type must be one of 'direct', 'topic', 'header' or 'fanout'.", 0 TSRMLS_CC);
+		zend_throw_exception(amqp_exchange_exception_class_entry, "Could not set exchange type. Exchange type must be one of 'direct', 'topic', 'headers' or 'fanout'.", 0 TSRMLS_CC);
 		return;
 	}
 	
@@ -789,12 +789,11 @@ PHP_METHOD(amqp_exchange_class, publish)
 	signal(SIGPIPE, old_handler);
 
 	/* handle any errors that occured outside of signals */
-	if (r) {
+	if (r < 0) {
 		char str[256];
 		char ** pstr = (char **) &str;
-		res = (amqp_rpc_reply_t)amqp_get_rpc_reply(connection->connection_resource->connection_state); 
-		amqp_error(res, pstr);
-		zend_throw_exception(amqp_exchange_exception_class_entry, *pstr, 0 TSRMLS_CC);
+        spprintf(pstr, 0, "Socket error: %s", amqp_error_string(-r));
+        zend_throw_exception(amqp_exchange_exception_class_entry, *pstr, 0 TSRMLS_CC);
 		return;
 	}
 	
