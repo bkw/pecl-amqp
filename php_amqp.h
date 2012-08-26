@@ -140,7 +140,7 @@ extern zend_module_entry amqp_module_entry;
 #define AMQP_EX_TYPE_DIRECT		"direct"
 #define AMQP_EX_TYPE_FANOUT		"fanout"
 #define AMQP_EX_TYPE_TOPIC		"topic"
-#define AMQP_EX_TYPE_HEADER		"header"
+#define AMQP_EX_TYPE_HEADER		"headers"
 
 #define PHP_AMQP_CONNECTION_RES_NAME "AMQP Connection Resource"
 
