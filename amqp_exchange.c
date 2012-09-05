@@ -43,6 +43,7 @@
 
 
 #if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
+zend_object_handlers amqp_exchange_object_handlers;
 HashTable *amqp_exchange_object_get_debug_info(zval *object, int *is_temp TSRMLS_DC) {
 	zval *value;
 
@@ -120,10 +121,9 @@ zend_object_value amqp_exchange_ctor(zend_class_entry *ce TSRMLS_DC)
 	);
 	
 #if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
-	zend_object_handlers *handlers;
-	handlers = zend_get_std_object_handlers();
-	handlers->get_debug_info = amqp_exchange_object_get_debug_info;
-	new_value.handlers = handlers;
+	memcpy((void *)&amqp_exchange_object_handlers, (void *)zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+	amqp_exchange_object_handlers.get_debug_info = amqp_exchange_object_get_debug_info;
+	new_value.handlers = &amqp_exchange_object_handlers;
 #else
 	new_value.handlers = zend_get_std_object_handlers();
 #endif
