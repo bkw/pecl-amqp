@@ -679,7 +679,7 @@ PHP_METHOD(amqp_queue_class, declare)
 		AMQP_SET_NAME(queue, name);
 	}
 
-	channel = AMQP_GET_CHANNEL(queue);
+	AMQP_ASSIGN_CHANNEL(channel, queue);
 	AMQP_VERIFY_CHANNEL(channel, "Could not declare queue.");
 	
 	connection = AMQP_GET_CONNECTION(channel);
