@@ -94,6 +94,10 @@ void amqp_exchange_dtor(void *object TSRMLS_DC)
 		zval_ptr_dtor(&exchange->arguments);
 	}
 
+	if (exchange->debug_info) {
+		efree(exchange->debug_info);
+	}
+
 	zend_object_std_dtor(&exchange->zo TSRMLS_CC);
 
 	efree(object);

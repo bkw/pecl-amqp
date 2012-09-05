@@ -320,6 +320,10 @@ void amqp_connection_dtor(void *object TSRMLS_DC)
 		efree(connection->password);
 	}
 
+	if (connection->debug_info) {
+		efree(connection->debug_info);
+	}
+
 	if (connection->connection_resource && connection->connection_resource->is_persistent == 0) {
 		if (connection->connection_resource->slots) {
 			for (slot = 1; slot < DEFAULT_CHANNELS_PER_CONNECTION; slot++) {

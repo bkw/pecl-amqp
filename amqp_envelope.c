@@ -145,6 +145,10 @@ void amqp_envelope_dtor(void *object TSRMLS_DC)
 		efree(envelope->body);
 	}
 	
+	if (envelope->debug_info) {
+		efree(envelope->debug_info);
+	}
+
 	zend_object_std_dtor(&envelope->zo TSRMLS_CC);
 	
 	efree(object);

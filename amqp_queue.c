@@ -104,6 +104,11 @@ void amqp_queue_dtor(void *object TSRMLS_DC)
 		zval_ptr_dtor(&queue->arguments);
 	}
 
+	/* Destroy the debug info storage */
+	if (queue->debug_info) {
+		efree(queue->debug_info);
+	}
+
 	zend_object_std_dtor(&queue->zo TSRMLS_CC);
 
 	/* Destroy this object */

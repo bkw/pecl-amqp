@@ -89,6 +89,11 @@ void amqp_channel_dtor(void *object TSRMLS_DC)
 		zval_ptr_dtor(&channel->connection);
 	}
 	
+	/* Destroy the debug info */
+	if (channel->debug_info) {
+		efree(channel->debug_info);
+	}
+
 	zend_object_std_dtor(&channel->zo TSRMLS_CC);
 
 	efree(object);
