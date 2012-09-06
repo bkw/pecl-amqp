@@ -26,13 +26,13 @@ $ex->publish('message', 'routing.key');
 $msg = $q->get();
 
 echo "message received from get:";
-var_dump($msg);
+print_r($msg);
 
 $q->delete();
 $ex->delete();
 ?>
 --EXPECTF--
-message received from get: AMQPEnvelope Object
+message received from get:AMQPEnvelope Object
 (
     [body] => message
     [content_type] => text/plain
@@ -51,5 +51,8 @@ message received from get: AMQPEnvelope Object
     [message_id] => 
     [reply_to] => 
     [correlation_id] => 
-    [headers] => 
+    [headers] => Array
+        (
+        )
+
 )
