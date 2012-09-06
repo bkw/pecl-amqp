@@ -80,8 +80,7 @@ void amqp_channel_dtor(void *object TSRMLS_DC)
 	amqp_channel_object *channel = (amqp_channel_object*)object;
 	amqp_connection_object *connection;
 
-	connection = AMQP_GET_CONNECTION(channel);
-	
+	AMQP_ASSIGN_CONNECTION(connection, channel);
 	remove_channel_from_connection(connection, channel);
 	
 	/* Destroy the connection storage */
