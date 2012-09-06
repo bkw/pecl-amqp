@@ -45,90 +45,91 @@
 zend_object_handlers amqp_envelope_object_handlers;
 HashTable *amqp_envelope_object_get_debug_info(zval *object, int *is_temp TSRMLS_DC) {
 	zval *value;
+	HashTable *debug_info;
 	
 	/* Get the envelope object from which to read */
 	amqp_envelope_object *envelope = (amqp_envelope_object *)zend_object_store_get_object(object TSRMLS_CC);
 	
-	/* Super magic make shit work variable. Seriously though, without this using print_r and/or var_dump will either cause memory leak or crash. */
-	*is_temp = 1;
+	/* Let zend clean up for us: */
+	*is_temp = 0;
 	
 	/* Keep the # 18 matching the number of entries in this table*/
-	ALLOC_HASHTABLE(envelope->debug_info);
-	ZEND_INIT_SYMTABLE_EX(envelope->debug_info, 18 + 1, 0);
+	ALLOC_HASHTABLE(debug_info);
+	ZEND_INIT_SYMTABLE_EX(debug_info, 18 + 1, 0);
 	
 	/* Start adding values */
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->body, envelope->body_len, 1);
-	zend_hash_add(envelope->debug_info, "body", strlen("body") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "body", strlen("body") + 1, &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->content_type, strlen(envelope->content_type), 1);
-	zend_hash_add(envelope->debug_info, "content_type", strlen("content_type") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "content_type", strlen("content_type") + 1, &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->routing_key, strlen(envelope->routing_key), 1);
-	zend_hash_add(envelope->debug_info, "routing_key", strlen("routing_key") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "routing_key", strlen("routing_key") + 1, &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_LONG(value, envelope->delivery_tag);
-	zend_hash_add(envelope->debug_info, "delivery_tag", strlen("delivery_tag") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "delivery_tag", strlen("delivery_tag") + 1, &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_LONG(value, envelope->delivery_mode);
-	zend_hash_add(envelope->debug_info, "delivery_mode", strlen("delivery_mode") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "delivery_mode", strlen("delivery_mode") + 1, &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->exchange_name, strlen(envelope->exchange_name), 1);
-	zend_hash_add(envelope->debug_info, "exchange_name", strlen("exchange_name") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "exchange_name", strlen("exchange_name") + 1, &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_LONG(value, envelope->is_redelivery);
-	zend_hash_add(envelope->debug_info, "is_redelivery", strlen("is_redelivery") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "is_redelivery", strlen("is_redelivery") + 1, &value, sizeof(zval *), NULL);
 		
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->content_encoding, strlen(envelope->content_encoding), 1);
-	zend_hash_add(envelope->debug_info, "content_encoding", strlen("content_encoding") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "content_encoding", strlen("content_encoding") + 1, &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->type, strlen(envelope->type), 1);
-	zend_hash_add(envelope->debug_info, "type", strlen("type") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "type", strlen("type") + 1, &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_LONG(value, envelope->timestamp);
-	zend_hash_add(envelope->debug_info, "timestamp", strlen("timestamp") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "timestamp", strlen("timestamp") + 1, &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_LONG(value, envelope->priority);
-	zend_hash_add(envelope->debug_info, "priority", strlen("priority") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "priority", strlen("priority") + 1, &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->expiration, strlen(envelope->expiration), 1);
-	zend_hash_add(envelope->debug_info, "expiration", strlen("expiration") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "expiration", strlen("expiration") + 1, &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->user_id, strlen(envelope->user_id), 1);
-	zend_hash_add(envelope->debug_info, "user_id", strlen("user_id") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "user_id", strlen("user_id") + 1, &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->app_id, strlen(envelope->app_id), 1);
-	zend_hash_add(envelope->debug_info, "app_id", strlen("app_id") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "app_id", strlen("app_id") + 1, &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->message_id, strlen(envelope->message_id), 1);
-	zend_hash_add(envelope->debug_info, "message_id", strlen("message_id") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "message_id", strlen("message_id") + 1, &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->reply_to, strlen(envelope->reply_to), 1);
-	zend_hash_add(envelope->debug_info, "reply_to", strlen("reply_to") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "reply_to", strlen("reply_to") + 1, &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, envelope->correlation_id, strlen(envelope->correlation_id), 1);
-	zend_hash_add(envelope->debug_info, "correlation_id", strlen("correlation_id") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "correlation_id", strlen("correlation_id") + 1, &value, sizeof(zval *), NULL);
 	
 	Z_ADDREF_P(envelope->headers);
-	zend_hash_add(envelope->debug_info, "headers", strlen("headers") + 1, &envelope->headers, sizeof(envelope->headers), NULL);
+	zend_hash_add(debug_info, "headers", strlen("headers") + 1, &envelope->headers, sizeof(envelope->headers), NULL);
 	
-	return envelope->debug_info;
+	return debug_info;
 }
 #endif
 
@@ -143,10 +144,6 @@ void amqp_envelope_dtor(void *object TSRMLS_DC)
 	
 	if (envelope->body) {
 		efree(envelope->body);
-	}
-	
-	if (envelope->debug_info) {
-		efree(envelope->debug_info);
 	}
 
 	zend_object_std_dtor(&envelope->zo TSRMLS_CC);

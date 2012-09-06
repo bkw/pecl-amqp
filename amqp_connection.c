@@ -46,40 +46,41 @@ zend_object_handlers amqp_connection_object_handlers;
 
 HashTable *amqp_connection_object_get_debug_info(zval *object, int *is_temp TSRMLS_DC) {
 	zval *value;
+	HashTable *debug_info;
 	
-	/* Super magic make shit work variable. Seriously though, without this using print_r and/or var_dump will either cause memory leak or crash. */
-	*is_temp = 1;
+	/* Let zend clean up for us: */
+	*is_temp = 0;
 	
 	/* Get the envelope object from which to read */
 	amqp_connection_object *connection = (amqp_connection_object *)zend_object_store_get_object(object TSRMLS_CC);
 		
 	/* Keep the first number matching the number of entries in this table*/
-	ALLOC_HASHTABLE(connection->debug_info);
-	ZEND_INIT_SYMTABLE_EX(connection->debug_info, 5 + 1, 0);
+	ALLOC_HASHTABLE(debug_info);
+	ZEND_INIT_SYMTABLE_EX(debug_info, 5 + 1, 0);
 	
 	/* Start adding values */
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, connection->login, strlen(connection->login), 1);
-	zend_hash_add(connection->debug_info, "login", strlen("login") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "login", strlen("login") + 1, &value, sizeof(zval *), NULL);
 
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, connection->password, strlen(connection->password), 1);
-	zend_hash_add(connection->debug_info, "password", strlen("password") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "password", strlen("password") + 1, &value, sizeof(zval *), NULL);
 
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, connection->host, strlen(connection->host), 1);
-	zend_hash_add(connection->debug_info, "host", strlen("host") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "host", strlen("host") + 1, &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, connection->vhost, strlen(connection->vhost), 1);
-	zend_hash_add(connection->debug_info, "vhost", strlen("vhost") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "vhost", strlen("vhost") + 1, &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_LONG(value, connection->port);
-	zend_hash_add(connection->debug_info, "port", strlen("port") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "port", strlen("port") + 1, &value, sizeof(zval *), NULL);
 
 	/* Start adding values */
-	return connection->debug_info;
+	return debug_info;
 }
 #endif
 
@@ -318,10 +319,6 @@ void amqp_connection_dtor(void *object TSRMLS_DC)
 	
 	if (connection->password) {
 		efree(connection->password);
-	}
-
-	if (connection->debug_info) {
-		efree(connection->debug_info);
 	}
 
 	if (connection->connection_resource && connection->connection_resource->is_persistent == 0) {

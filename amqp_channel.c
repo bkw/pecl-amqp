@@ -46,32 +46,33 @@
 zend_object_handlers amqp_channel_object_handlers;
 HashTable *amqp_channel_object_get_debug_info(zval *object, int *is_temp TSRMLS_DC) {
 	zval *value;
+	HashTable *debug_info;
 	
 	/* Get the envelope object from which to read */
 	amqp_channel_object *channel = (amqp_channel_object *)zend_object_store_get_object(object TSRMLS_CC);
 	
-	/* Super magic make shit work variable. Seriously though, without this using print_r and/or var_dump will either cause memory leak or crash. */
-	*is_temp = 1;
+	/* Let zend clean up for us: */
+	*is_temp = 0;
 	
 	/* Keep the first number matching the number of entries in this table*/
-	ALLOC_HASHTABLE(channel->debug_info);
-	ZEND_INIT_SYMTABLE_EX(channel->debug_info, 3 + 1, 0);
+	ALLOC_HASHTABLE(debug_info);
+	ZEND_INIT_SYMTABLE_EX(debug_info, 3 + 1, 0);
 	
 	/* Start adding values */
 	MAKE_STD_ZVAL(value);
 	ZVAL_LONG(value, channel->channel_id);
-	zend_hash_add(channel->debug_info, "channel_id", strlen("channel_id") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "channel_id", strlen("channel_id") + 1, &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_LONG(value, channel->prefetch_count);
-	zend_hash_add(channel->debug_info, "prefetch_count", strlen("prefetch_count") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "prefetch_count", strlen("prefetch_count") + 1, &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_LONG(value, channel->prefetch_size);
-	zend_hash_add(channel->debug_info, "prefetch_size", strlen("prefetch_size") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "prefetch_size", strlen("prefetch_size") + 1, &value, sizeof(zval *), NULL);
 
 	/* Start adding values */
-	return channel->debug_info;
+	return debug_info;
 }
 #endif
 
@@ -86,11 +87,6 @@ void amqp_channel_dtor(void *object TSRMLS_DC)
 	/* Destroy the connection storage */
 	if (channel->connection) {
 		zval_ptr_dtor(&channel->connection);
-	}
-	
-	/* Destroy the debug info */
-	if (channel->debug_info) {
-		efree(channel->debug_info);
 	}
 
 	zend_object_std_dtor(&channel->zo TSRMLS_CC);
