@@ -61,21 +61,21 @@ HashTable *amqp_exchange_object_get_debug_info(zval *object, int *is_temp TSRMLS
 	/* Start adding values */
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, exchange->name, strlen(exchange->name), 1);
-	zend_hash_add(debug_info, "name", strlen("name") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "name", sizeof("name"), &value, sizeof(zval *), NULL);
 
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, exchange->type, strlen(exchange->type), 1);
-	zend_hash_add(debug_info, "type", strlen("type") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "type", sizeof("type"), &value, sizeof(zval *), NULL);
 
 	MAKE_STD_ZVAL(value);
 	ZVAL_LONG(value, exchange->passive);
-	zend_hash_add(debug_info, "passive", strlen("passive") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "passive", sizeof("passive"), &value, sizeof(zval *), NULL);
 
 	MAKE_STD_ZVAL(value);
 	ZVAL_LONG(value, exchange->durable);
-	zend_hash_add(debug_info, "durable", strlen("durable") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "durable", sizeof("durable"), &value, sizeof(zval *), NULL);
 
-	zend_hash_add(debug_info, "arguments", strlen("arguments") + 1, &exchange->arguments, sizeof(&exchange->arguments), NULL);
+	zend_hash_add(debug_info, "arguments", sizeof("arguments"), &exchange->arguments, sizeof(&exchange->arguments), NULL);
 
 	/* Start adding values */
 	return debug_info;

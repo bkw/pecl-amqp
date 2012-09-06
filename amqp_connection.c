@@ -61,23 +61,23 @@ HashTable *amqp_connection_object_get_debug_info(zval *object, int *is_temp TSRM
 	/* Start adding values */
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, connection->login, strlen(connection->login), 1);
-	zend_hash_add(debug_info, "login", strlen("login") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "login", sizeof("login"), &value, sizeof(zval *), NULL);
 
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, connection->password, strlen(connection->password), 1);
-	zend_hash_add(debug_info, "password", strlen("password") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "password", sizeof("password"), &value, sizeof(zval *), NULL);
 
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, connection->host, strlen(connection->host), 1);
-	zend_hash_add(debug_info, "host", strlen("host") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "host", sizeof("host"), &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, connection->vhost, strlen(connection->vhost), 1);
-	zend_hash_add(debug_info, "vhost", strlen("vhost") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "vhost", sizeof("vhost"), &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_LONG(value, connection->port);
-	zend_hash_add(debug_info, "port", strlen("port") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "port", sizeof("port"), &value, sizeof(zval *), NULL);
 
 	/* Start adding values */
 	return debug_info;

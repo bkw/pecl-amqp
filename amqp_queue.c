@@ -61,29 +61,29 @@ HashTable *amqp_queue_object_get_debug_info(zval *object, int *is_temp TSRMLS_DC
 	/* Start adding values */
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, queue->name, strlen(queue->name), 1);
-	zend_hash_add(debug_info, "queue_name", strlen("queue_name") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "queue_name", sizeof("queue_name"), &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_STRINGL(value, queue->consumer_tag, strlen(queue->consumer_tag), 1);
-	zend_hash_add(debug_info, "consumer_tag", strlen("consumer_tag") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "consumer_tag", sizeof("consumer_tag"), &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_BOOL(value, queue->passive);
-	zend_hash_add(debug_info, "passive", strlen("passive") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "passive", sizeof("passive"), &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_BOOL(value, queue->durable);
-	zend_hash_add(debug_info, "durable", strlen("durable") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "durable", sizeof("durable"), &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_BOOL(value, queue->exclusive);
-	zend_hash_add(debug_info, "exclusive", strlen("exclusive") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "exclusive", sizeof("exclusive"), &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_BOOL(value, queue->auto_delete);
-	zend_hash_add(debug_info, "auto_delete", strlen("auto_delete") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "auto_delete", sizeof("auto_delete"), &value, sizeof(zval *), NULL);
 	
-	zend_hash_add(debug_info, "arguments", strlen("arguments") + 1, &queue->arguments, sizeof(&queue->arguments), NULL);
+	zend_hash_add(debug_info, "arguments", sizeof("arguments"), &queue->arguments, sizeof(&queue->arguments), NULL);
 
 	/* Start adding values */
 	return debug_info;
