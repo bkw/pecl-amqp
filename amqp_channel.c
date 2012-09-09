@@ -43,34 +43,36 @@
 #include "amqp_connection.h"
 
 #if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
+zend_object_handlers amqp_channel_object_handlers;
 HashTable *amqp_channel_object_get_debug_info(zval *object, int *is_temp TSRMLS_DC) {
 	zval *value;
+	HashTable *debug_info;
 	
 	/* Get the envelope object from which to read */
 	amqp_channel_object *channel = (amqp_channel_object *)zend_object_store_get_object(object TSRMLS_CC);
 	
-	/* Super magic make shit work variable. Seriously though, without this using print_r and/or var_dump will either cause memory leak or crash. */
-	*is_temp = 1;
+	/* Let zend clean up for us: */
+	*is_temp = 0;
 	
 	/* Keep the first number matching the number of entries in this table*/
-	ALLOC_HASHTABLE(channel->debug_info);
-	ZEND_INIT_SYMTABLE_EX(channel->debug_info, 3 + 1, 0);
+	ALLOC_HASHTABLE(debug_info);
+	ZEND_INIT_SYMTABLE_EX(debug_info, 3 + 1, 0);
 	
 	/* Start adding values */
 	MAKE_STD_ZVAL(value);
 	ZVAL_LONG(value, channel->channel_id);
-	zend_hash_add(channel->debug_info, "channel_id", strlen("channel_id") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "channel_id", sizeof("channel_id"), &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_LONG(value, channel->prefetch_count);
-	zend_hash_add(channel->debug_info, "prefetch_count", strlen("prefetch_count") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "prefetch_count", sizeof("prefetch_count"), &value, sizeof(zval *), NULL);
 	
 	MAKE_STD_ZVAL(value);
 	ZVAL_LONG(value, channel->prefetch_size);
-	zend_hash_add(channel->debug_info, "prefetch_size", strlen("prefetch_size") + 1, &value, sizeof(zval *), NULL);
+	zend_hash_add(debug_info, "prefetch_size", sizeof("prefetch_size"), &value, sizeof(zval *), NULL);
 
 	/* Start adding values */
-	return channel->debug_info;
+	return debug_info;
 }
 #endif
 
@@ -79,7 +81,7 @@ void amqp_channel_dtor(void *object TSRMLS_DC)
 	amqp_channel_object *channel = (amqp_channel_object*)object;
 	amqp_connection_object *connection;
 
-	connection = AMQP_GET_CONNECTION(channel);
+	AMQP_ASSIGN_CONNECTION(connection, channel);
 	
 	remove_channel_from_connection(connection, channel);
 	
@@ -111,10 +113,9 @@ zend_object_value amqp_channel_ctor(zend_class_entry *ce TSRMLS_DC)
 	);
 	
 #if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION >= 3
-	zend_object_handlers *handlers;
-	handlers = zend_get_std_object_handlers();
-	handlers->get_debug_info = amqp_channel_object_get_debug_info;
-	new_value.handlers = handlers;
+	memcpy((void *)&amqp_channel_object_handlers, (void *)zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+	amqp_channel_object_handlers.get_debug_info = amqp_channel_object_get_debug_info;
+	new_value.handlers = &amqp_channel_object_handlers;
 #else
 	new_value.handlers = zend_get_std_object_handlers();
 #endif

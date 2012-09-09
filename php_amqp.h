@@ -270,7 +270,6 @@ typedef struct _amqp_channel_object {
 	char is_connected;
 	int prefetch_count;
 	int prefetch_size;
-	HashTable *debug_info;
 } amqp_channel_object;
 
 typedef struct _amqp_connection_resource {
@@ -294,7 +293,6 @@ typedef struct _amqp_connection_object {
 	int vhost_len;
 	int port;
 	amqp_connection_resource *connection_resource;
-	HashTable *debug_info;
 } amqp_connection_object;
 
 typedef struct _amqp_queue_object {
@@ -310,7 +308,6 @@ typedef struct _amqp_queue_object {
 	int exclusive;
 	int auto_delete; /* end @TODO */
 	zval *arguments;
-	HashTable *debug_info;
 } amqp_queue_object;
 
 
@@ -326,7 +323,6 @@ typedef struct _amqp_exchange_object {
 	int durable;
 	int auto_delete; /* end @TODO */
 	zval *arguments;
-	HashTable *debug_info;
 } amqp_exchange_object;
 
 typedef struct _amqp_envelope_object {
@@ -350,7 +346,6 @@ typedef struct _amqp_envelope_object {
 	char reply_to[255];
 	char correlation_id[255];
 	zval *headers;
-	HashTable *debug_info;
 } amqp_envelope_object;
 
 #ifdef ZTS
